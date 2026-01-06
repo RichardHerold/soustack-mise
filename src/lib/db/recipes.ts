@@ -114,7 +114,7 @@ export async function listMyRecipes() {
 
   const { data, error } = await supabase
     .from('recipes')
-    .select('id,title,updated_at,created_at')
+    .select('id,title,updated_at,created_at,is_public,public_id')
     .order('updated_at', { ascending: false });
 
   if (error) throw error;
@@ -138,6 +138,7 @@ export async function loadRecipe(id: string): Promise<WorkbenchDoc> {
 /**
  * Loads recipe with metadata (including public status).
  * Returns both the doc and metadata.
+ * Requires auth (owner-only via RLS).
  */
 export async function loadRecipeWithMeta(id: string) {
   const supabase = supabaseBrowser();
@@ -154,6 +155,47 @@ export async function loadRecipeWithMeta(id: string) {
     doc: data.doc as WorkbenchDoc,
     is_public: data.is_public ?? false,
     public_id: data.public_id ?? null,
+  };
+}
+
+/**
+ * Loads a recipe by ID for read-only viewing.
+ * Works for public recipes (no auth) or private recipes (auth required, owner-only).
+ * Returns null if not found or not accessible.
+ */
+export async function loadRecipeForView(id: string): Promise<{
+  doc: WorkbenchDoc;
+  is_public: boolean;
+  public_id: string | null;
+  is_owner: boolean;
+} | null> {
+  const supabase = supabaseBrowser();
+  const { data: auth } = await supabase.auth.getUser();
+
+  // Try to load recipe (RLS will enforce access)
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('doc,is_public,public_id,owner_id')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  // Check if user is owner
+  const is_owner = auth.user?.id === data.owner_id;
+
+  // If not public and not owner, return null
+  if (!data.is_public && !is_owner) {
+    return null;
+  }
+
+  return {
+    doc: data.doc as WorkbenchDoc,
+    is_public: data.is_public ?? false,
+    public_id: data.public_id ?? null,
+    is_owner,
   };
 }
 

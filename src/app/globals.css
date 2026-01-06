@@ -19,3 +19,91 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Layout utilities */
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Card utilities */
+.card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.cardHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cardBody {
+  padding: 24px;
+}
+
+/* Button utilities */
+.button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  color: #000;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.button:hover {
+  border-color: #000;
+  background: #fafafa;
+}
+
+.buttonPrimary {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
+.buttonPrimary:hover {
+  background: #333;
+  border-color: #333;
+}
+
+.buttonSecondary {
+  background: transparent;
+  color: #666;
+  border-color: #d0d0d0;
+}
+
+.buttonSecondary:hover {
+  background: #fafafa;
+  color: #000;
+  border-color: #000;
+}
+
+/* Chip utilities */
+.chip {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chipMuted {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.chipSuccess {
+  background: #d1fae5;
+  color: #059669;
+}
+

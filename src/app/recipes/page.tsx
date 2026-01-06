@@ -4,12 +4,15 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { listMyRecipes } from '@/lib/db/recipes';
 import AuthPanel from '@/components/AuthPanel';
+import RecipeCard from '@/components/RecipeCard';
 
 type RecipeListItem = {
   id: string;
   title: string;
   updated_at: string;
   created_at: string;
+  is_public?: boolean;
+  public_id?: string | null;
 };
 
 export default function RecipesPage() {
@@ -93,7 +96,7 @@ export default function RecipesPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+      <div className="container" style={{ paddingTop: '24px', paddingBottom: '24px' }}>
         <h1 style={{ margin: '0 0 24px 0', fontSize: '32px', fontWeight: 600 }}>
           My Recipes
         </h1>
@@ -187,44 +190,14 @@ export default function RecipesPage() {
                 }}
               >
                 {recipes.map((recipe) => (
-                  <Link
+                  <RecipeCard
                     key={recipe.id}
-                    href={`/recipes/${recipe.id}`}
-                    style={{
-                      display: 'block',
-                      padding: '20px',
-                      backgroundColor: '#fff',
-                      borderRadius: '8px',
-                      border: '1px solid #e0e0e0',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      transition: 'border-color 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#000';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#e0e0e0';
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: 600,
-                        marginBottom: '8px',
-                      }}
-                    >
-                      {recipe.title || 'Untitled Recipe'}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '13px',
-                        color: '#666',
-                      }}
-                    >
-                      Updated {formatDate(recipe.updated_at)}
-                    </div>
-                  </Link>
+                    id={recipe.id}
+                    title={recipe.title || 'Untitled Recipe'}
+                    updated_at={recipe.updated_at}
+                    is_public={recipe.is_public}
+                    public_id={recipe.public_id}
+                  />
                 ))}
               </div>
             )}
