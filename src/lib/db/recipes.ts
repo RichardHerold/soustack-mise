@@ -112,12 +112,30 @@ export async function listMyRecipes() {
   const supabase = supabaseBrowser();
   await requireUserId();
 
+  // Try to select with public columns, fall back if they don't exist
   const { data, error } = await supabase
     .from('recipes')
     .select('id,title,updated_at,created_at,is_public,public_id')
     .order('updated_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    // If columns don't exist, try without them
+    if (error.message?.includes('does not exist') || error.code === '42703') {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('recipes')
+        .select('id,title,updated_at,created_at')
+        .order('updated_at', { ascending: false });
+      
+      if (fallbackError) throw fallbackError;
+      // Return with default values for missing columns
+      return (fallbackData || []).map((recipe) => ({
+        ...recipe,
+        is_public: false,
+        public_id: null,
+      }));
+    }
+    throw error;
+  }
   return data;
 }
 

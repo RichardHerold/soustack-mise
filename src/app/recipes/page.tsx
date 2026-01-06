@@ -184,9 +184,9 @@ export default function RecipesPage() {
             ) : (
               <div
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '16px',
                 }}
               >
                 {recipes.map((recipe) => (
