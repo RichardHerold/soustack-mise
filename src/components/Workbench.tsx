@@ -1,20 +1,57 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { parseFreeform } from '@/lib/mise/parseFreeform';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import type { WorkbenchDoc } from '@/lib/mise/workbenchDoc';
-import { createEmptyWorkbenchDoc, nowIso } from '@/lib/mise/workbenchDoc';
+import {
+  createEmptyWorkbenchDoc,
+  nowIso,
+} from '@/lib/mise/workbenchDoc';
+import { saveRecipe } from '@/lib/db/recipes';
 import RawDraftEditor from './RawDraftEditor';
 import StructuredEditor from './StructuredEditor';
 import PreviewTabs from './PreviewTabs';
 import ConvertDialog from './ConvertDialog';
+import AuthPanel from './AuthPanel';
 
 const DEBOUNCE_MS = 200;
 
-export default function Workbench() {
-  const [doc, setDoc] = useState<WorkbenchDoc>(createEmptyWorkbenchDoc);
+type WorkbenchProps = {
+  initialDoc?: WorkbenchDoc;
+};
+
+export default function Workbench({ initialDoc }: WorkbenchProps) {
+  // Initialize with initialDoc if provided, otherwise empty
+  const [doc, setDoc] = useState<WorkbenchDoc>(() => {
+    if (initialDoc) {
+      // Validate that initialDoc has required structure, fallback if malformed
+      try {
+        if (
+          initialDoc.recipe &&
+          initialDoc.draft &&
+          initialDoc.meta &&
+          typeof initialDoc.recipe.name === 'string'
+        ) {
+          return initialDoc;
+        }
+      } catch {
+        // Fall through to empty doc
+      }
+    }
+    return createEmptyWorkbenchDoc();
+  });
+
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [savedRecipeId, setSavedRecipeId] = useState<string | undefined>(
+    undefined
+  );
+  const [saveStatus, setSaveStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'auth_required' | 'error'
+  >('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Debounced parse and compile - only runs in raw mode
   useEffect(() => {
@@ -92,6 +129,32 @@ export default function Workbench() {
     }));
   }, []);
 
+  const handleSave = useCallback(async () => {
+    setSaveStatus('saving');
+    setSaveError(null);
+
+    try {
+      const result = await saveRecipe({
+        id: savedRecipeId,
+        doc,
+      });
+      setSavedRecipeId(result.id);
+      setSaveStatus('saved');
+      // Clear saved status after 3 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } catch (error: any) {
+      if (error.message === 'AUTH_REQUIRED') {
+        setSaveStatus('auth_required');
+        setShowAuthPrompt(true);
+      } else {
+        setSaveStatus('error');
+        setSaveError(error.message || 'Failed to save recipe');
+      }
+    }
+  }, [doc, savedRecipeId]);
+
   const handleConvert = useCallback((preserveProse: boolean) => {
     setDoc((prev) => {
       const now = nowIso();
@@ -166,27 +229,141 @@ export default function Workbench() {
           alignItems: 'center',
         }}
       >
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 600 }}>
-          Soustack Mise
-        </h1>
-        {doc.draft.mode === 'raw' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 600 }}>
+            Soustack Mise
+          </h1>
+          <Link
+            href="/recipes"
+            style={{
+              fontSize: '14px',
+              color: '#666',
+              textDecoration: 'none',
+            }}
+          >
+            My Recipes
+          </Link>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {doc.draft.mode === 'raw' && (
+            <button
+              onClick={() => setShowConvertDialog(true)}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                backgroundColor: '#000',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              Convert
+            </button>
+          )}
           <button
-            onClick={() => setShowConvertDialog(true)}
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
             style={{
               padding: '8px 16px',
               border: 'none',
               borderRadius: '4px',
-              backgroundColor: '#000',
+              backgroundColor:
+                saveStatus === 'saved' ? '#059669' : '#000',
               color: '#fff',
-              cursor: 'pointer',
+              cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
               fontSize: '14px',
               fontWeight: 500,
+              opacity: saveStatus === 'saving' ? 0.5 : 1,
             }}
           >
-            Convert
+            {saveStatus === 'saving'
+              ? 'Saving...'
+              : saveStatus === 'saved'
+                ? 'Saved ✓'
+                : 'Save'}
           </button>
-        )}
+        </div>
       </header>
+      {showAuthPrompt && (
+        <div
+          style={{
+            padding: '16px',
+            borderBottom: '1px solid #e0e0e0',
+            backgroundColor: '#fef3c7',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  marginBottom: '8px',
+                }}
+              >
+                Sign in to save recipes
+              </div>
+              <AuthPanel />
+            </div>
+            <button
+              onClick={() => {
+                setShowAuthPrompt(false);
+                setSaveStatus('idle');
+              }}
+              style={{
+                padding: '4px 8px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                fontSize: '20px',
+                color: '#666',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      {saveStatus === 'error' && saveError && (
+        <div
+          style={{
+            padding: '12px 24px',
+            borderBottom: '1px solid #e0e0e0',
+            backgroundColor: '#fee2e2',
+            color: '#dc2626',
+            fontSize: '14px',
+          }}
+        >
+          Error: {saveError}
+          <button
+            onClick={() => {
+              setSaveStatus('idle');
+              setSaveError(null);
+            }}
+            style={{
+              marginLeft: '12px',
+              padding: '4px 8px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              fontSize: '14px',
+              color: '#dc2626',
+              textDecoration: 'underline',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div style={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
           {doc.draft.mode === 'raw' ? (
