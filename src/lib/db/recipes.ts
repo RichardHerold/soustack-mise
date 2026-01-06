@@ -37,6 +37,11 @@ async function getNextRevision(
   return (data?.revision ?? 0) + 1;
 }
 
+/**
+ * @deprecated Use saveRecipeAction from @/app/actions/recipes instead.
+ * This client-side write function is kept for backward compatibility but should not be used.
+ * Server actions provide better security and are the preferred approach.
+ */
 export async function saveRecipe(params: {
   id?: string;
   doc: WorkbenchDoc;
@@ -153,8 +158,9 @@ export async function loadRecipeWithMeta(id: string) {
 }
 
 /**
- * Sets the public status of a recipe.
- * RLS ensures only owner can update.
+ * @deprecated Use setRecipePublicAction from @/app/actions/recipes instead.
+ * This client-side write function is kept for backward compatibility but should not be used.
+ * Server actions provide better security and are the preferred approach.
  */
 export async function setRecipePublic(
   recipeId: string,

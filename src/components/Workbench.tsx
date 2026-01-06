@@ -9,7 +9,7 @@ import {
   createEmptyWorkbenchDoc,
   nowIso,
 } from '@/lib/mise/workbenchDoc';
-import { saveRecipe, setRecipePublic } from '@/lib/db/recipes';
+import { saveRecipeAction, setRecipePublicAction } from '@/app/actions/recipes';
 import { slugify } from '@/lib/utils/slugify';
 import RawDraftEditor from './RawDraftEditor';
 import StructuredEditor from './StructuredEditor';
@@ -151,14 +151,14 @@ export default function Workbench({
     setSaveError(null);
 
     try {
-      const result = await saveRecipe({
-        id: savedRecipeId,
+      const result = await saveRecipeAction({
+        id: savedRecipeId ?? undefined,
         doc,
       });
       setSavedRecipeId(result.id);
       // Store public status and public_id from response
-      setIsPublic(result.is_public ?? false);
-      setPublicId(result.public_id ?? null);
+      setIsPublic(result.is_public);
+      setPublicId(result.public_id);
       setSaveStatus('saved');
       // Clear saved status after 3 seconds
       setTimeout(() => {
@@ -238,15 +238,27 @@ export default function Workbench({
 
       setPublicStatus('updating');
       try {
-        const result = await setRecipePublic(savedRecipeId, makePublic);
-        setIsPublic(result.is_public ?? false);
-        setPublicId(result.public_id ?? null);
+        const result = await setRecipePublicAction({
+          recipeId: savedRecipeId,
+          makePublic,
+        });
+        setIsPublic(result.is_public);
+        setPublicId(result.public_id);
         setPublicStatus('idle');
       } catch (error: any) {
-        console.error('Failed to set public status:', error);
-        setPublicStatus('error');
-        // Reset after a moment
-        setTimeout(() => setPublicStatus('idle'), 2000);
+        if (error.message === 'AUTH_REQUIRED') {
+          setShowAuthPrompt(true);
+          setPublicStatus('error');
+          setTimeout(() => setPublicStatus('idle'), 2000);
+        } else if (error.message === 'NOT_FOUND') {
+          console.error('Recipe not found:', error);
+          setPublicStatus('error');
+          setTimeout(() => setPublicStatus('idle'), 2000);
+        } else {
+          console.error('Failed to set public status:', error);
+          setPublicStatus('error');
+          setTimeout(() => setPublicStatus('idle'), 2000);
+        }
       }
     },
     [savedRecipeId]
