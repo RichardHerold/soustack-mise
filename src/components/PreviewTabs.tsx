@@ -8,9 +8,10 @@ type PreviewTabsProps = {
   parse: { confidence: number; mode: string } | null;
 };
 
-type Tab = 'preview' | 'json' | 'parse';
+type Tab = 'preview' | 'json' | 'parse' | 'prose';
 
 export default function PreviewTabs({ recipe, parse }: PreviewTabsProps) {
+  const hasProse = !!recipe['x-mise']?.prose?.text;
   const [activeTab, setActiveTab] = useState<Tab>('preview');
 
   return (
@@ -34,11 +35,20 @@ export default function PreviewTabs({ recipe, parse }: PreviewTabsProps) {
         >
           Parse
         </TabButton>
+        {hasProse && (
+          <TabButton
+            active={activeTab === 'prose'}
+            onClick={() => setActiveTab('prose')}
+          >
+            Prose
+          </TabButton>
+        )}
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {activeTab === 'preview' && <PreviewTab recipe={recipe} />}
         {activeTab === 'json' && <JsonTab recipe={recipe} />}
         {activeTab === 'parse' && <ParseTab parse={parse} />}
+        {activeTab === 'prose' && hasProse && <ProseTab recipe={recipe} />}
       </div>
     </div>
   );
@@ -238,6 +248,76 @@ function ParseTab({ parse }: { parse: { confidence: number; mode: string } | nul
           This recipe is always valid, even with missing or incomplete data.
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProseTab({ recipe }: { recipe: SoustackLiteRecipe }) {
+  const prose = recipe['x-mise']?.prose;
+  if (!prose) {
+    return null;
+  }
+
+  const capturedDate = new Date(prose.capturedAt);
+  const formattedDate = capturedDate.toLocaleString();
+
+  return (
+    <div>
+      <div style={{ marginBottom: '16px' }}>
+        <div
+          style={{
+            fontSize: '12px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            color: '#666',
+            marginBottom: '8px',
+          }}
+        >
+          Captured At
+        </div>
+        <div style={{ fontSize: '14px', color: '#666' }}>{formattedDate}</div>
+      </div>
+
+      <div style={{ marginBottom: '8px' }}>
+        <div
+          style={{
+            fontSize: '12px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            color: '#666',
+            marginBottom: '8px',
+          }}
+        >
+          Original Prose
+        </div>
+        <div
+          style={{
+            fontSize: '13px',
+            color: '#666',
+            fontStyle: 'italic',
+            marginBottom: '16px',
+          }}
+        >
+          This is non-executable metadata. Never used for computation.
+        </div>
+      </div>
+
+      <textarea
+        readOnly
+        value={prose.text}
+        style={{
+          width: '100%',
+          minHeight: '300px',
+          padding: '16px',
+          border: '1px solid #e0e0e0',
+          borderRadius: '4px',
+          fontSize: '14px',
+          fontFamily: 'monospace',
+          lineHeight: '1.6',
+          backgroundColor: '#fafafa',
+          resize: 'vertical',
+        }}
+      />
     </div>
   );
 }

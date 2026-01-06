@@ -10,9 +10,14 @@ export type SoustackLiteRecipe = {
   ingredients: unknown[];
   instructions: unknown[];
   'x-mise'?: {
-    parse: {
+    parse?: {
       confidence: number;
       mode: string;
+    };
+    prose?: {
+      text: string;
+      format: 'plain' | 'markdown';
+      capturedAt: string;
     };
   };
 };
