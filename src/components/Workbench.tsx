@@ -57,7 +57,9 @@ export default function Workbench({
   >('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [copySuccess, setCopySuccess] = useState<'json' | 'url' | null>(null);
+  const [copySuccess, setCopySuccess] = useState<
+    'json' | 'url' | 'sidecar' | null
+  >(null);
 
   // Debounced parse and compile - only runs in raw mode
   useEffect(() => {
@@ -199,6 +201,22 @@ export default function Workbench({
       setTimeout(() => setCopySuccess(null), 2000);
     } catch (error) {
       console.error('Failed to copy URL:', error);
+      // B3) Non-blocking error feedback (optional - could show toast)
+    }
+  }, [savedRecipeId]);
+
+  const handleCopySidecarUrl = useCallback(async () => {
+    // B5) Safety: never attempt to copy if savedRecipeId is missing
+    if (!savedRecipeId) return;
+    try {
+      // B2) Construct absolute URL using browser origin
+      const url = `${window.location.origin}/soustack/recipes/${savedRecipeId}.soustack.json`;
+      await navigator.clipboard.writeText(url);
+      setCopySuccess('sidecar');
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy sidecar URL:', error);
+      // B3) Non-blocking error feedback
     }
   }, [savedRecipeId]);
 
@@ -384,6 +402,34 @@ export default function Workbench({
               </button>
             )}
           </div>
+          {savedRecipeId ? (
+            <button
+              onClick={handleCopySidecarUrl}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                color: copySuccess === 'sidecar' ? '#059669' : '#000',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              {copySuccess === 'sidecar' ? 'Copied ✓' : 'Copy sidecar URL'}
+            </button>
+          ) : (
+            <div
+              style={{
+                padding: '8px 12px',
+                fontSize: '12px',
+                color: '#999',
+                fontStyle: 'italic',
+              }}
+            >
+              Save to enable link
+            </div>
+          )}
           <button
             onClick={handleSave}
             disabled={saveStatus === 'saving'}
