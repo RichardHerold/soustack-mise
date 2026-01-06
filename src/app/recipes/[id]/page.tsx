@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { loadRecipe } from '@/lib/db/recipes';
+import { loadRecipeWithMeta } from '@/lib/db/recipes';
 import type { WorkbenchDoc } from '@/lib/mise/workbenchDoc';
 import { createEmptyWorkbenchDoc } from '@/lib/mise/workbenchDoc';
 import Workbench from '@/components/Workbench';
@@ -14,12 +14,14 @@ export default function RecipePage() {
   const [doc, setDoc] = useState<WorkbenchDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [initialIsPublic, setInitialIsPublic] = useState<boolean>(false);
+  const [initialPublicId, setInitialPublicId] = useState<string | null>(null);
 
   const loadRecipeDoc = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const loaded = await loadRecipe(id);
+      const { doc: loaded, is_public, public_id } = await loadRecipeWithMeta(id);
       // Validate loaded doc structure
       if (
         loaded &&
@@ -29,6 +31,9 @@ export default function RecipePage() {
         typeof loaded.recipe.name === 'string'
       ) {
         setDoc(loaded);
+        // Store public status for Workbench
+        setInitialIsPublic(is_public);
+        setInitialPublicId(public_id);
       } else {
         // Malformed doc, fall back to empty
         console.warn('Loaded recipe doc is malformed, using empty doc');
@@ -104,6 +109,13 @@ export default function RecipePage() {
   // If doc is null (shouldn't happen after loading), use empty doc
   const initialDoc = doc || createEmptyWorkbenchDoc();
 
-  return <Workbench initialDoc={initialDoc} initialRecipeId={id} />;
+  return (
+    <Workbench
+      initialDoc={initialDoc}
+      initialRecipeId={id}
+      initialIsPublic={initialIsPublic}
+      initialPublicId={initialPublicId}
+    />
+  );
 }
 

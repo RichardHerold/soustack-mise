@@ -9,7 +9,7 @@ import {
   createEmptyWorkbenchDoc,
   nowIso,
 } from '@/lib/mise/workbenchDoc';
-import { saveRecipe } from '@/lib/db/recipes';
+import { saveRecipe, setRecipePublic } from '@/lib/db/recipes';
 import { slugify } from '@/lib/utils/slugify';
 import RawDraftEditor from './RawDraftEditor';
 import StructuredEditor from './StructuredEditor';
@@ -22,11 +22,15 @@ const DEBOUNCE_MS = 200;
 type WorkbenchProps = {
   initialDoc?: WorkbenchDoc;
   initialRecipeId?: string;
+  initialIsPublic?: boolean;
+  initialPublicId?: string | null;
 };
 
 export default function Workbench({
   initialDoc,
   initialRecipeId,
+  initialIsPublic = false,
+  initialPublicId = null,
 }: WorkbenchProps) {
   // Initialize with initialDoc if provided, otherwise empty
   const [doc, setDoc] = useState<WorkbenchDoc>(() => {
@@ -58,8 +62,13 @@ export default function Workbench({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [copySuccess, setCopySuccess] = useState<
-    'json' | 'url' | 'sidecar' | null
+    'json' | 'url' | 'sidecar' | 'private' | 'public' | null
   >(null);
+  const [isPublic, setIsPublic] = useState<boolean>(initialIsPublic);
+  const [publicId, setPublicId] = useState<string | null>(initialPublicId);
+  const [publicStatus, setPublicStatus] = useState<
+    'idle' | 'updating' | 'error'
+  >('idle');
 
   // Debounced parse and compile - only runs in raw mode
   useEffect(() => {
@@ -147,6 +156,9 @@ export default function Workbench({
         doc,
       });
       setSavedRecipeId(result.id);
+      // Store public status and public_id from response
+      setIsPublic(result.is_public ?? false);
+      setPublicId(result.public_id ?? null);
       setSaveStatus('saved');
       // Clear saved status after 3 seconds
       setTimeout(() => {
@@ -219,6 +231,50 @@ export default function Workbench({
       // B3) Non-blocking error feedback
     }
   }, [savedRecipeId]);
+
+  const handleSetPublic = useCallback(
+    async (makePublic: boolean) => {
+      if (!savedRecipeId) return;
+
+      setPublicStatus('updating');
+      try {
+        const result = await setRecipePublic(savedRecipeId, makePublic);
+        setIsPublic(result.is_public ?? false);
+        setPublicId(result.public_id ?? null);
+        setPublicStatus('idle');
+      } catch (error: any) {
+        console.error('Failed to set public status:', error);
+        setPublicStatus('error');
+        // Reset after a moment
+        setTimeout(() => setPublicStatus('idle'), 2000);
+      }
+    },
+    [savedRecipeId]
+  );
+
+  const handleCopyPrivateUrl = useCallback(async () => {
+    if (!savedRecipeId) return;
+    try {
+      const url = `${window.location.origin}/soustack/recipes/${savedRecipeId}.soustack.json`;
+      await navigator.clipboard.writeText(url);
+      setCopySuccess('private');
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy private URL:', error);
+    }
+  }, [savedRecipeId]);
+
+  const handleCopyPublicUrl = useCallback(async () => {
+    if (!publicId) return;
+    try {
+      const url = `${window.location.origin}/soustack/public/${publicId}.soustack.json`;
+      await navigator.clipboard.writeText(url);
+      setCopySuccess('public');
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy public URL:', error);
+    }
+  }, [publicId]);
 
   const handleConvert = useCallback((preserveProse: boolean) => {
     setDoc((prev) => {
@@ -402,34 +458,104 @@ export default function Workbench({
               </button>
             )}
           </div>
-          {savedRecipeId ? (
-            <button
-              onClick={handleCopySidecarUrl}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                color: copySuccess === 'sidecar' ? '#059669' : '#000',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              {copySuccess === 'sidecar' ? 'Copied ✓' : 'Copy sidecar URL'}
-            </button>
-          ) : (
-            <div
-              style={{
-                padding: '8px 12px',
-                fontSize: '12px',
-                color: '#999',
-                fontStyle: 'italic',
-              }}
-            >
-              Save to enable link
-            </div>
-          )}
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              padding: '0 12px',
+              borderLeft: '1px solid #e0e0e0',
+              borderRight: '1px solid #e0e0e0',
+            }}
+          >
+            {savedRecipeId ? (
+              <>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    onChange={(e) => handleSetPublic(e.target.checked)}
+                    disabled={publicStatus === 'updating'}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>
+                    {publicStatus === 'updating'
+                      ? 'Updating...'
+                      : isPublic
+                        ? 'Public ✓'
+                        : 'Public'}
+                  </span>
+                </label>
+                <button
+                  onClick={handleCopyPrivateUrl}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #d0d0d0',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    color: copySuccess === 'private' ? '#059669' : '#000',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                  }}
+                >
+                  {copySuccess === 'private' ? 'Copied ✓' : 'Copy private sidecar URL'}
+                </button>
+                {isPublic && publicId ? (
+                  <button
+                    onClick={handleCopyPublicUrl}
+                    style={{
+                      padding: '6px 12px',
+                      border: '1px solid #d0d0d0',
+                      borderRadius: '4px',
+                      backgroundColor: '#fff',
+                      color: copySuccess === 'public' ? '#059669' : '#000',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {copySuccess === 'public' ? 'Copied ✓' : 'Copy public Soustack JSON link'}
+                  </button>
+                ) : isPublic ? (
+                  <button
+                    disabled
+                    style={{
+                      padding: '6px 12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      backgroundColor: '#f5f5f5',
+                      color: '#999',
+                      cursor: 'not-allowed',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Publishing...
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#999',
+                  fontStyle: 'italic',
+                }}
+              >
+                Save to enable publishing
+              </div>
+            )}
+          </div>
           <button
             onClick={handleSave}
             disabled={saveStatus === 'saving'}

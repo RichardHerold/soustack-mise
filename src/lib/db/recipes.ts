@@ -67,7 +67,7 @@ export async function saveRecipe(params: {
     .upsert(payload, {
       onConflict: 'id',
     })
-    .select('id,updated_at,title')
+    .select('id,updated_at,title,is_public,public_id')
     .single();
 
   if (error) throw error;
@@ -128,5 +128,66 @@ export async function loadRecipe(id: string): Promise<WorkbenchDoc> {
 
   if (error) throw error;
   return data.doc as WorkbenchDoc;
+}
+
+/**
+ * Loads recipe with metadata (including public status).
+ * Returns both the doc and metadata.
+ */
+export async function loadRecipeWithMeta(id: string) {
+  const supabase = supabaseBrowser();
+  await requireUserId();
+
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('doc,is_public,public_id')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return {
+    doc: data.doc as WorkbenchDoc,
+    is_public: data.is_public ?? false,
+    public_id: data.public_id ?? null,
+  };
+}
+
+/**
+ * Sets the public status of a recipe.
+ * RLS ensures only owner can update.
+ */
+export async function setRecipePublic(
+  recipeId: string,
+  makePublic: boolean
+) {
+  const supabase = supabaseBrowser();
+  await requireUserId();
+
+  const { data, error } = await supabase
+    .from('recipes')
+    .update({ is_public: makePublic })
+    .eq('id', recipeId)
+    .select('id,is_public,public_id,updated_at,title')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Gets recipe metadata (owner-only via RLS).
+ */
+export async function getRecipeMeta(recipeId: string) {
+  const supabase = supabaseBrowser();
+  await requireUserId();
+
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('id,is_public,public_id,title,updated_at')
+    .eq('id', recipeId)
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
