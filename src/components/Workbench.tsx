@@ -193,7 +193,7 @@ export default function Workbench({
   const handleCopyUrl = useCallback(async () => {
     if (!savedRecipeId) return;
     try {
-      const url = `${window.location.origin}/recipes/${savedRecipeId}`;
+      const url = `${window.location.origin}/soustack/recipes/${savedRecipeId}.soustack.json`;
       await navigator.clipboard.writeText(url);
       setCopySuccess('url');
       setTimeout(() => setCopySuccess(null), 2000);
