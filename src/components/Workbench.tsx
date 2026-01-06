@@ -10,6 +10,7 @@ import {
   nowIso,
 } from '@/lib/mise/workbenchDoc';
 import { saveRecipe } from '@/lib/db/recipes';
+import { slugify } from '@/lib/utils/slugify';
 import RawDraftEditor from './RawDraftEditor';
 import StructuredEditor from './StructuredEditor';
 import PreviewTabs from './PreviewTabs';
@@ -56,6 +57,7 @@ export default function Workbench({
   >('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [copySuccess, setCopySuccess] = useState<'json' | 'url' | null>(null);
 
   // Debounced parse and compile - only runs in raw mode
   useEffect(() => {
@@ -158,6 +160,47 @@ export default function Workbench({
       }
     }
   }, [doc, savedRecipeId]);
+
+  const handleCopyJson = useCallback(async () => {
+    try {
+      const json = JSON.stringify(doc.recipe, null, 2);
+      await navigator.clipboard.writeText(json);
+      setCopySuccess('json');
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
+  }, [doc.recipe]);
+
+  const handleDownloadJson = useCallback(() => {
+    try {
+      const json = JSON.stringify(doc.recipe, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const filename = `${slugify(doc.recipe.name)}.soustack.json`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    }
+  }, [doc.recipe]);
+
+  const handleCopyUrl = useCallback(async () => {
+    if (!savedRecipeId) return;
+    try {
+      const url = `${window.location.origin}/recipes/${savedRecipeId}`;
+      await navigator.clipboard.writeText(url);
+      setCopySuccess('url');
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+    }
+  }, [savedRecipeId]);
 
   const handleConvert = useCallback((preserveProse: boolean) => {
     setDoc((prev) => {
@@ -266,6 +309,81 @@ export default function Workbench({
               Convert
             </button>
           )}
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              padding: '0 12px',
+              borderLeft: '1px solid #e0e0e0',
+              borderRight: '1px solid #e0e0e0',
+            }}
+          >
+            <button
+              onClick={handleCopyJson}
+              style={{
+                padding: '6px 12px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                color: copySuccess === 'json' ? '#059669' : '#000',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              {copySuccess === 'json' ? 'Copied ✓' : 'Copy Soustack JSON'}
+            </button>
+            <button
+              onClick={handleDownloadJson}
+              style={{
+                padding: '6px 12px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                color: '#000',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              Download .soustack.json
+            </button>
+            {savedRecipeId ? (
+              <button
+                onClick={handleCopyUrl}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  color: copySuccess === 'url' ? '#059669' : '#000',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                {copySuccess === 'url' ? 'Copied ✓' : 'Copy link'}
+              </button>
+            ) : (
+              <button
+                disabled
+                title="Save to enable link"
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '4px',
+                  backgroundColor: '#f5f5f5',
+                  color: '#999',
+                  cursor: 'not-allowed',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                Copy link
+              </button>
+            )}
+          </div>
           <button
             onClick={handleSave}
             disabled={saveStatus === 'saving'}
