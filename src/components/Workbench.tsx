@@ -20,9 +20,13 @@ const DEBOUNCE_MS = 200;
 
 type WorkbenchProps = {
   initialDoc?: WorkbenchDoc;
+  initialRecipeId?: string;
 };
 
-export default function Workbench({ initialDoc }: WorkbenchProps) {
+export default function Workbench({
+  initialDoc,
+  initialRecipeId,
+}: WorkbenchProps) {
   // Initialize with initialDoc if provided, otherwise empty
   const [doc, setDoc] = useState<WorkbenchDoc>(() => {
     if (initialDoc) {
@@ -45,7 +49,7 @@ export default function Workbench({ initialDoc }: WorkbenchProps) {
 
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [savedRecipeId, setSavedRecipeId] = useState<string | undefined>(
-    undefined
+    initialRecipeId
   );
   const [saveStatus, setSaveStatus] = useState<
     'idle' | 'saving' | 'saved' | 'auth_required' | 'error'

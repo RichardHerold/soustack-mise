@@ -44,16 +44,29 @@ export async function saveRecipe(params: {
   const supabase = supabaseBrowser();
   const userId = await requireUserId();
 
-  const payload = {
-    id: params.id,
+  // Build payload - only include id if provided (for updates)
+  const payload: {
+    id?: string;
+    owner_id: string;
+    title: string;
+    doc: WorkbenchDoc;
+  } = {
     owner_id: userId,
     title: params.doc.recipe.name,
     doc: params.doc,
   };
 
+  // Only include id if provided (for updates)
+  if (params.id) {
+    payload.id = params.id;
+  }
+
+  // Use upsert with onConflict to ensure updates work correctly
   const { data, error } = await supabase
     .from('recipes')
-    .upsert(payload)
+    .upsert(payload, {
+      onConflict: 'id',
+    })
     .select('id,updated_at,title')
     .single();
 

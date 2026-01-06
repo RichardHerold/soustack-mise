@@ -104,6 +104,6 @@ export default function RecipePage() {
   // If doc is null (shouldn't happen after loading), use empty doc
   const initialDoc = doc || createEmptyWorkbenchDoc();
 
-  return <Workbench initialDoc={initialDoc} />;
+  return <Workbench initialDoc={initialDoc} initialRecipeId={id} />;
 }
 
