@@ -1,12 +1,23 @@
 /**
- * Soustack Lite Recipe type
+ * Valid Soustack profile types
+ */
+export type SoustackProfile = 'lite';
+
+/**
+ * Valid Soustack profiles list
+ */
+export const VALID_SOUSTACK_PROFILES: SoustackProfile[] = ['lite'];
+
+/**
+ * Soustack Recipe type
  * Always-valid recipe artifact with minimal structure
  */
 export type SoustackLiteRecipe = {
   $schema: string;
-  profile: 'lite';
-  stacks: Record<string, never>;
+  profile: SoustackProfile;
+  stacks: Record<string, unknown>;
   name: string;
+  description?: string;
   ingredients: unknown[];
   instructions: unknown[];
   'x-mise'?: {

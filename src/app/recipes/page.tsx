@@ -96,10 +96,10 @@ export default function RecipesPage() {
         </div>
       </header>
 
-      <div className="container" style={{ paddingTop: '24px', paddingBottom: '24px' }}>
-        <h1 style={{ margin: '0 0 24px 0', fontSize: '32px', fontWeight: 600 }}>
-          My Recipes
-        </h1>
+      <div className="container">
+        <div className="section-header">
+          <h1>My Recipes</h1>
+        </div>
 
         {authRequired && (
           <div
@@ -182,13 +182,7 @@ export default function RecipesPage() {
                 </Link>
               </div>
             ) : (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                  gap: '16px',
-                }}
-              >
+              <div className="recipe-grid">
                 {recipes.map((recipe) => (
                   <RecipeCard
                     key={recipe.id}

@@ -1,6 +1,7 @@
 'use client';
 
-import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import type { SoustackLiteRecipe, SoustackProfile } from '@/lib/mise/types';
+import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 
 type StructuredEditorProps = {
@@ -31,6 +32,25 @@ export default function StructuredEditor({
     onChange(next);
   };
 
+  const handleStackToggle = (stackName: string, enabled: boolean) => {
+    const currentStacks = { ...recipe.stacks };
+    
+    if (enabled) {
+      // Add stack with version 1
+      currentStacks[stackName] = 1;
+    } else {
+      // Remove stack declaration only
+      delete currentStacks[stackName];
+    }
+
+    const next = {
+      ...recipe,
+      stacks: currentStacks,
+    };
+
+    onChange(next);
+  };
+
   const handleIngredientChange = (index: number, value: string) => {
     const newIngredients = [...safeIngredients];
     newIngredients[index] = value;
@@ -41,6 +61,7 @@ export default function StructuredEditor({
 
     const next = compileLiteRecipe({
       name: recipe.name,
+      description: recipe.description,
       ingredients: finalIngredients,
       instructions: safeInstructions as string[],
       meta: recipe['x-mise']?.parse
@@ -50,6 +71,10 @@ export default function StructuredEditor({
           }
         : undefined,
     });
+
+    // Preserve profile and stacks
+    next.profile = recipe.profile;
+    next.stacks = { ...recipe.stacks };
 
     // Preserve x-mise prose if it exists
     if (recipe['x-mise']?.prose) {
@@ -75,6 +100,9 @@ export default function StructuredEditor({
           }
         : undefined,
     });
+
+    // Preserve stacks
+    next.stacks = { ...recipe.stacks };
 
     if (recipe['x-mise']?.prose) {
       next['x-mise'] = {
@@ -102,6 +130,9 @@ export default function StructuredEditor({
           }
         : undefined,
     });
+
+    // Preserve stacks
+    next.stacks = { ...recipe.stacks };
 
     if (recipe['x-mise']?.prose) {
       next['x-mise'] = {
@@ -133,6 +164,9 @@ export default function StructuredEditor({
         : undefined,
     });
 
+    // Preserve stacks
+    next.stacks = { ...recipe.stacks };
+
     if (recipe['x-mise']?.prose) {
       next['x-mise'] = {
         ...next['x-mise'],
@@ -156,6 +190,9 @@ export default function StructuredEditor({
           }
         : undefined,
     });
+
+    // Preserve stacks
+    next.stacks = { ...recipe.stacks };
 
     if (recipe['x-mise']?.prose) {
       next['x-mise'] = {
@@ -184,6 +221,9 @@ export default function StructuredEditor({
         : undefined,
     });
 
+    // Preserve stacks
+    next.stacks = { ...recipe.stacks };
+
     if (recipe['x-mise']?.prose) {
       next['x-mise'] = {
         ...next['x-mise'],
@@ -194,6 +234,18 @@ export default function StructuredEditor({
     onChange(next);
   };
 
+  const handleProfileChange = (profile: SoustackProfile) => {
+    // Changing profile does NOT auto-add or remove stacks
+    // Profile selection is explicit author intent
+    const next: SoustackLiteRecipe = {
+      ...recipe,
+      profile,
+      // Preserve existing stacks - do not mutate
+      stacks: recipe.stacks || {},
+    };
+    onChange(next);
+  };
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
@@ -201,7 +253,65 @@ export default function StructuredEditor({
           Structured Editor
         </h2>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Sidebar with profile selection */}
+        <div
+          style={{
+            width: '240px',
+            borderRight: '1px solid #e0e0e0',
+            backgroundColor: '#f9fafb',
+            padding: '16px',
+            overflow: 'auto',
+          }}
+        >
+          <div style={{ marginBottom: '24px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#666',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Soustack Profile
+            </label>
+            <select
+              value={recipe.profile}
+              onChange={(e) => handleProfileChange(e.target.value as SoustackProfile)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                fontSize: '14px',
+                backgroundColor: '#fff',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {VALID_SOUSTACK_PROFILES.map((profile) => (
+                <option key={profile} value={profile}>
+                  {profile}
+                </option>
+              ))}
+            </select>
+            <div
+              style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                color: '#999',
+                fontStyle: 'italic',
+              }}
+            >
+              Profile selection does not auto-modify content
+            </div>
+          </div>
+        </div>
+        {/* Main editor content */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         <div style={{ marginBottom: '32px' }}>
           <label
             style={{
@@ -225,6 +335,58 @@ export default function StructuredEditor({
               fontSize: '16px',
             }}
           />
+        </div>
+
+        <div style={{ marginBottom: '32px' }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: '12px',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+          >
+            Stacks
+          </label>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            {(['Prep', 'Equipment', 'Timed', 'Storage', 'Scaling'] as const).map((stackName) => {
+              const stackKey = stackName.toLowerCase();
+              const isEnabled = stackKey in recipe.stacks && recipe.stacks[stackKey] !== undefined;
+              return (
+                <label
+                  key={stackKey}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    border: '1px solid #d0d0d0',
+                    borderRadius: '4px',
+                    backgroundColor: isEnabled ? '#f0f9ff' : '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    userSelect: 'none',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isEnabled}
+                    onChange={(e) => handleStackToggle(stackKey, e.target.checked)}
+                    style={{
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <span>{stackName}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
 
         <div style={{ marginBottom: '32px' }}>
@@ -370,6 +532,7 @@ export default function StructuredEditor({
               </button>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>

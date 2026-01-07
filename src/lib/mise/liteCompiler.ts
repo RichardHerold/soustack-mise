@@ -8,11 +8,13 @@ const CANONICAL_SCHEMA_URL = 'https://soustack.spec/soustack.schema.json';
  */
 export function compileLiteRecipe(input: {
   name?: string | null;
+  description?: string | null;
   ingredients?: string[] | null;
   instructions?: string[] | null;
   meta?: { confidence?: number; mode?: string };
 }): SoustackLiteRecipe {
   const name = input.name?.trim() || 'Untitled Recipe';
+  const description = input.description?.trim() || undefined;
   const ingredients = input.ingredients?.filter((item) => item.trim().length > 0) || [];
   const instructions = input.instructions?.filter((item) => item.trim().length > 0) || [];
 
@@ -21,6 +23,7 @@ export function compileLiteRecipe(input: {
     profile: 'lite',
     stacks: {},
     name,
+    ...(description && { description }),
     ingredients: ingredients.length > 0 ? ingredients : ['(not provided)'],
     instructions: instructions.length > 0 ? instructions : ['(not provided)'],
   };

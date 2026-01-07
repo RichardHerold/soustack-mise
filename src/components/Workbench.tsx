@@ -16,6 +16,7 @@ import StructuredEditor from './StructuredEditor';
 import PreviewTabs from './PreviewTabs';
 import ConvertDialog from './ConvertDialog';
 import AuthPanel from './AuthPanel';
+import EditorTopBar from './EditorTopBar';
 
 const DEBOUNCE_MS = 200;
 
@@ -69,6 +70,7 @@ export default function Workbench({
   const [publicStatus, setPublicStatus] = useState<
     'idle' | 'updating' | 'error'
   >('idle');
+  const [miseMode, setMiseMode] = useState<'draft' | 'mise'>('draft');
 
   // Debounced parse and compile - only runs in raw mode
   useEffect(() => {
@@ -81,35 +83,39 @@ export default function Workbench({
         // Parse the freeform text
         const parseResult = parseFreeform(doc.draft.rawText);
 
-        // Compile into always-valid recipe
-        const compiled = compileLiteRecipe({
-          name: parseResult.title,
-          ingredients: parseResult.ingredients,
-          instructions: parseResult.instructions,
-          meta: {
-            confidence: parseResult.confidence,
-            mode: parseResult.mode,
-          },
-        });
-
         // Update doc atomically
-        setDoc((prev) => ({
-          ...prev,
-          recipe: compiled,
-          draft: {
-            ...prev.draft,
-            lastImport: {
-              source: 'manual',
+        setDoc((prev) => {
+          // Compile into always-valid recipe
+          // Preserve existing description if it exists
+          const compiled = compileLiteRecipe({
+            name: parseResult.title,
+            description: prev.recipe.description,
+            ingredients: parseResult.ingredients,
+            instructions: parseResult.instructions,
+            meta: {
               confidence: parseResult.confidence,
               mode: parseResult.mode,
-              at: nowIso(),
             },
-          },
-          meta: {
-            revision: prev.meta.revision + 1,
-            updatedAt: nowIso(),
-          },
-        }));
+          });
+
+          return {
+            ...prev,
+            recipe: compiled,
+            draft: {
+              ...prev.draft,
+              lastImport: {
+                source: 'manual',
+                confidence: parseResult.confidence,
+                mode: parseResult.mode,
+                at: nowIso(),
+              },
+            },
+            meta: {
+              revision: prev.meta.revision + 1,
+              updatedAt: nowIso(),
+            },
+          };
+        });
       } catch (error) {
         // Should never happen, but if it does, ensure we still have valid state
         console.error('Parse/compile error (should not happen):', error);
@@ -144,6 +150,45 @@ export default function Workbench({
         updatedAt: nowIso(),
       },
     }));
+  }, []);
+
+  const handleNameChange = useCallback((name: string) => {
+    setDoc((prev) => {
+      const next = {
+        ...prev.recipe,
+        name: name.trim() || 'Untitled Recipe',
+      };
+      return {
+        ...prev,
+        recipe: next,
+        meta: {
+          revision: prev.meta.revision + 1,
+          updatedAt: nowIso(),
+        },
+      };
+    });
+  }, []);
+
+  const handleDescriptionChange = useCallback((description: string) => {
+    setDoc((prev) => {
+      const trimmed = description.trim();
+      const next = {
+        ...prev.recipe,
+        ...(trimmed ? { description: trimmed } : { description: undefined }),
+      };
+      // Remove description field if empty
+      if (!trimmed && 'description' in next) {
+        delete next.description;
+      }
+      return {
+        ...prev,
+        recipe: next,
+        meta: {
+          revision: prev.meta.revision + 1,
+          updatedAt: nowIso(),
+        },
+      };
+    });
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -353,17 +398,19 @@ export default function Workbench({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {/* App header */}
       <header
         style={{
-          padding: '24px',
+          padding: '12px 24px',
           borderBottom: '1px solid #e0e0e0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          backgroundColor: '#fafafa',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 600 }}>
+          <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
             Soustack Mise
           </h1>
           <Link
@@ -377,221 +424,242 @@ export default function Workbench({
             My Recipes
           </Link>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {doc.draft.mode === 'raw' && (
-            <button
-              onClick={() => setShowConvertDialog(true)}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '4px',
-                backgroundColor: '#000',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              Convert
-            </button>
-          )}
-          <div
+      </header>
+      
+      {/* Editor top bar */}
+      <EditorTopBar
+        recipe={doc.recipe}
+        miseMode={miseMode}
+        onModeChange={setMiseMode}
+        onNameChange={handleNameChange}
+        onDescriptionChange={handleDescriptionChange}
+      />
+      
+      {/* Action buttons toolbar */}
+      <div
+        style={{
+          padding: '12px 24px',
+          borderBottom: '1px solid #e0e0e0',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'center',
+          backgroundColor: '#fafafa',
+        }}
+      >
+        {doc.draft.mode === 'raw' && (
+          <button
+            onClick={() => setShowConvertDialog(true)}
             style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              padding: '0 12px',
-              borderLeft: '1px solid #e0e0e0',
-              borderRight: '1px solid #e0e0e0',
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: '#000',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 500,
             }}
           >
+            Convert
+          </button>
+        )}
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            padding: '0 12px',
+            borderLeft: '1px solid #e0e0e0',
+            borderRight: '1px solid #e0e0e0',
+          }}
+        >
+          <button
+            onClick={handleCopyJson}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #d0d0d0',
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              color: copySuccess === 'json' ? '#059669' : '#000',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
+            {copySuccess === 'json' ? 'Copied ✓' : 'Copy Soustack JSON'}
+          </button>
+          <button
+            onClick={handleDownloadJson}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #d0d0d0',
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              color: '#000',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
+            Download .soustack.json
+          </button>
+          {savedRecipeId ? (
             <button
-              onClick={handleCopyJson}
+              onClick={handleCopyUrl}
               style={{
                 padding: '6px 12px',
                 border: '1px solid #d0d0d0',
                 borderRadius: '4px',
                 backgroundColor: '#fff',
-                color: copySuccess === 'json' ? '#059669' : '#000',
+                color: copySuccess === 'url' ? '#059669' : '#000',
                 cursor: 'pointer',
                 fontSize: '13px',
                 fontWeight: 500,
               }}
             >
-              {copySuccess === 'json' ? 'Copied ✓' : 'Copy Soustack JSON'}
+              {copySuccess === 'url' ? 'Copied ✓' : 'Copy link'}
             </button>
+          ) : (
             <button
-              onClick={handleDownloadJson}
+              disabled
+              title="Save to enable link"
               style={{
                 padding: '6px 12px',
-                border: '1px solid #d0d0d0',
+                border: '1px solid #e0e0e0',
                 borderRadius: '4px',
-                backgroundColor: '#fff',
-                color: '#000',
-                cursor: 'pointer',
+                backgroundColor: '#f5f5f5',
+                color: '#999',
+                cursor: 'not-allowed',
                 fontSize: '13px',
                 fontWeight: 500,
               }}
             >
-              Download .soustack.json
+              Copy link
             </button>
-            {savedRecipeId ? (
+          )}
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            padding: '0 12px',
+            borderLeft: '1px solid #e0e0e0',
+            borderRight: '1px solid #e0e0e0',
+          }}
+        >
+          {savedRecipeId ? (
+            <>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isPublic}
+                  onChange={(e) => handleSetPublic(e.target.checked)}
+                  disabled={publicStatus === 'updating'}
+                  style={{ cursor: 'pointer' }}
+                />
+                <span>
+                  {publicStatus === 'updating'
+                    ? 'Updating...'
+                    : isPublic
+                      ? 'Public ✓'
+                      : 'Public'}
+                </span>
+              </label>
               <button
-                onClick={handleCopyUrl}
+                onClick={handleCopyPrivateUrl}
                 style={{
                   padding: '6px 12px',
                   border: '1px solid #d0d0d0',
                   borderRadius: '4px',
                   backgroundColor: '#fff',
-                  color: copySuccess === 'url' ? '#059669' : '#000',
+                  color: copySuccess === 'private' ? '#059669' : '#000',
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: 500,
                 }}
               >
-                {copySuccess === 'url' ? 'Copied ✓' : 'Copy link'}
+                {copySuccess === 'private' ? 'Copied ✓' : 'Copy private sidecar URL'}
               </button>
-            ) : (
-              <button
-                disabled
-                title="Save to enable link"
-                style={{
-                  padding: '6px 12px',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '4px',
-                  backgroundColor: '#f5f5f5',
-                  color: '#999',
-                  cursor: 'not-allowed',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                }}
-              >
-                Copy link
-              </button>
-            )}
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              padding: '0 12px',
-              borderLeft: '1px solid #e0e0e0',
-              borderRight: '1px solid #e0e0e0',
-            }}
-          >
-            {savedRecipeId ? (
-              <>
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isPublic}
-                    onChange={(e) => handleSetPublic(e.target.checked)}
-                    disabled={publicStatus === 'updating'}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span>
-                    {publicStatus === 'updating'
-                      ? 'Updating...'
-                      : isPublic
-                        ? 'Public ✓'
-                        : 'Public'}
-                  </span>
-                </label>
+              {isPublic && publicId ? (
                 <button
-                  onClick={handleCopyPrivateUrl}
+                  onClick={handleCopyPublicUrl}
                   style={{
                     padding: '6px 12px',
                     border: '1px solid #d0d0d0',
                     borderRadius: '4px',
                     backgroundColor: '#fff',
-                    color: copySuccess === 'private' ? '#059669' : '#000',
+                    color: copySuccess === 'public' ? '#059669' : '#000',
                     cursor: 'pointer',
                     fontSize: '13px',
                     fontWeight: 500,
                   }}
                 >
-                  {copySuccess === 'private' ? 'Copied ✓' : 'Copy private sidecar URL'}
+                  {copySuccess === 'public' ? 'Copied ✓' : 'Copy public Soustack JSON link'}
                 </button>
-                {isPublic && publicId ? (
-                  <button
-                    onClick={handleCopyPublicUrl}
-                    style={{
-                      padding: '6px 12px',
-                      border: '1px solid #d0d0d0',
-                      borderRadius: '4px',
-                      backgroundColor: '#fff',
-                      color: copySuccess === 'public' ? '#059669' : '#000',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {copySuccess === 'public' ? 'Copied ✓' : 'Copy public Soustack JSON link'}
-                  </button>
-                ) : isPublic ? (
-                  <button
-                    disabled
-                    style={{
-                      padding: '6px 12px',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                      backgroundColor: '#f5f5f5',
-                      color: '#999',
-                      cursor: 'not-allowed',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Publishing...
-                  </button>
-                ) : null}
-              </>
-            ) : (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  color: '#999',
-                  fontStyle: 'italic',
-                }}
-              >
-                Save to enable publishing
-              </div>
-            )}
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={saveStatus === 'saving'}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '4px',
-              backgroundColor:
-                saveStatus === 'saved' ? '#059669' : '#000',
-              color: '#fff',
-              cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: 500,
-              opacity: saveStatus === 'saving' ? 0.5 : 1,
-            }}
-          >
-            {saveStatus === 'saving'
-              ? 'Saving...'
-              : saveStatus === 'saved'
-                ? 'Saved ✓'
-                : 'Save'}
-          </button>
+              ) : isPublic ? (
+                <button
+                  disabled
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '4px',
+                    backgroundColor: '#f5f5f5',
+                    color: '#999',
+                    cursor: 'not-allowed',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                  }}
+                >
+                  Publishing...
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <div
+              style={{
+                padding: '8px 12px',
+                fontSize: '12px',
+                color: '#999',
+                fontStyle: 'italic',
+              }}
+            >
+              Save to enable publishing
+            </div>
+          )}
         </div>
-      </header>
+        <button
+          onClick={handleSave}
+          disabled={saveStatus === 'saving'}
+          style={{
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor:
+              saveStatus === 'saved' ? '#059669' : '#000',
+            color: '#fff',
+            cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: 500,
+            opacity: saveStatus === 'saving' ? 0.5 : 1,
+          }}
+        >
+          {saveStatus === 'saving'
+            ? 'Saving...'
+            : saveStatus === 'saved'
+              ? 'Saved ✓'
+              : 'Save'}
+        </button>
+      </div>
+      
       {showAuthPrompt && (
         <div
           style={{
