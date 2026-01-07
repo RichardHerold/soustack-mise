@@ -43,7 +43,10 @@ export default function AfterCookingSection({
   recipe,
   onChange,
 }: AfterCookingSectionProps) {
-  const isEnabled = 'storage@1' in recipe.stacks && recipe.stacks['storage@1'] !== undefined;
+  // Check for storage@1 (versioned) or storage (capability declaration)
+  const isEnabled =
+    ('storage@1' in recipe.stacks && recipe.stacks['storage@1'] !== undefined) ||
+    ('storage' in recipe.stacks && recipe.stacks['storage'] !== undefined);
 
   // Get storage data from recipe
   const getStorageData = (): StorageData => {
@@ -70,7 +73,7 @@ export default function AfterCookingSection({
       delete (next as SoustackLiteRecipe & { storage?: StorageData }).storage;
       setStorageData({});
     } else {
-      // Enable: add storage@1 to stacks
+      // Enable: add storage@1 to stacks (versioned key as per requirements)
       next.stacks = {
         ...next.stacks,
         'storage@1': 1,

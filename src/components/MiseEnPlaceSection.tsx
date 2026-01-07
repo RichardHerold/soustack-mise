@@ -14,8 +14,8 @@ type MiseEnPlaceSectionProps = {
 
 /**
  * Mise en Place section component
- * - Visible when prep@1 stack is enabled
- * - Collapsed suggestion when disabled
+ * - Visible when prep capability is enabled (recipe.stacks['prep'])
+ * - Content stored in recipe.stacks['prep@1'] (preserves existing payload)
  * - Checklist-style free text items
  * - Orderable items
  */
@@ -23,7 +23,8 @@ export default function MiseEnPlaceSection({
   recipe,
   onChange,
 }: MiseEnPlaceSectionProps) {
-  const isEnabled = 'prep@1' in recipe.stacks && recipe.stacks['prep@1'] !== undefined;
+  // Check for prep capability declaration (not prep@1 content)
+  const isEnabled = 'prep' in recipe.stacks && recipe.stacks['prep'] !== undefined;
   
   // Get mise en place items from stacks
   const getMiseEnPlaceItems = (): MiseEnPlaceItem[] => {
@@ -47,26 +48,6 @@ export default function MiseEnPlaceSection({
     setIsExpanded(isEnabled);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe.stacks]);
-
-  const handleToggleStack = () => {
-    const next = { ...recipe };
-    if (isEnabled) {
-      // Disable: remove prep@1 from stacks
-      const { 'prep@1': _, ...restStacks } = next.stacks;
-      next.stacks = restStacks;
-      setItems([]);
-      setIsExpanded(false);
-    } else {
-      // Enable: add prep@1 to stacks with empty array
-      next.stacks = {
-        ...next.stacks,
-        'prep@1': [],
-      };
-      setItems([]);
-      setIsExpanded(true);
-    }
-    onChange(next);
-  };
 
   const handleItemChange = (index: number, text: string) => {
     const newItems = [...items];
@@ -110,63 +91,9 @@ export default function MiseEnPlaceSection({
     onChange(next);
   };
 
-  // Collapsed suggestion when disabled
+  // Hide section when capability is not enabled
   if (!isEnabled) {
-    return (
-      <div style={{ marginBottom: '32px' }}>
-        <div
-          style={{
-            padding: '12px 16px',
-            border: '1px dashed #d0d0d0',
-            borderRadius: '4px',
-            backgroundColor: '#fafafa',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-          onClick={handleToggleStack}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: '14px',
-                fontWeight: 500,
-                marginBottom: '4px',
-                color: '#666',
-              }}
-            >
-              Mise en Place
-            </div>
-            <div
-              style={{
-                fontSize: '12px',
-                color: '#999',
-                fontStyle: 'italic',
-              }}
-            >
-              Click to enable preparation steps
-            </div>
-          </div>
-          <button
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleToggleStack();
-            }}
-          >
-            Enable
-          </button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Full section when enabled
@@ -188,35 +115,19 @@ export default function MiseEnPlaceSection({
         >
           Mise en Place
         </label>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={handleAddItem}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            + Add item
-          </button>
-          <button
-            onClick={handleToggleStack}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-              color: '#666',
-            }}
-          >
-            Disable
-          </button>
-        </div>
+        <button
+          onClick={handleAddItem}
+          style={{
+            padding: '6px 12px',
+            border: '1px solid #d0d0d0',
+            borderRadius: '4px',
+            backgroundColor: '#fff',
+            cursor: 'pointer',
+            fontSize: '13px',
+          }}
+        >
+          + Add item
+        </button>
       </div>
       {items.length === 0 ? (
         <div

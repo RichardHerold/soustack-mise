@@ -37,13 +37,14 @@ type IngredientsSectionProps = {
  * - Supports structured objects (with quantity, unit, name)
  * - Supports nested sections/groups
  * - Inline quantity editing
- * - Scaling UI when scaling@1 enabled
+ * - Scaling UI when scaling capability is enabled (recipe.stacks['scaling'])
  */
 export default function IngredientsSection({
   recipe,
   onChange,
 }: IngredientsSectionProps) {
-  const hasScaling = 'scaling@1' in recipe.stacks && recipe.stacks['scaling@1'] !== undefined;
+  // Check for scaling capability declaration (not scaling@1 content)
+  const hasScaling = 'scaling' in recipe.stacks && recipe.stacks['scaling'] !== undefined;
 
   // Parse ingredients array into structured items
   const parseIngredients = (): IngredientItem[] => {
@@ -342,7 +343,7 @@ export default function IngredientsSection({
           fontSize: '14px',
         }}
       />
-      {/* Scaling UI (only when scaling@1 enabled) */}
+      {/* Scaling UI (only when scaling capability enabled) */}
       {hasScaling && (
         <select
           value={item.scaling?.mode || 'proportional'}
