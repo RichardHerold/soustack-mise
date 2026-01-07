@@ -24,13 +24,9 @@ export default function StructuredEditor({
   const ingredients = Array.isArray(recipe.ingredients)
     ? (recipe.ingredients as string[])
     : [];
-  const instructions = Array.isArray(recipe.instructions)
-    ? (recipe.instructions as string[])
-    : [];
 
   // Ensure we always have at least one item in each array
   const safeIngredients = ingredients.length > 0 ? ingredients : [''];
-  const safeInstructions = instructions.length > 0 ? instructions : [''];
 
   const handleNameChange = (name: string) => {
     const next = {
@@ -39,28 +35,6 @@ export default function StructuredEditor({
     };
     onChange(next);
   };
-
-  const handleStackToggle = (stackName: string, enabled: boolean) => {
-    const currentStacks = { ...recipe.stacks };
-    // Stack keys include "@1" suffix to match component checks
-    const stackKey = `${stackName}@1`;
-    
-    if (enabled) {
-      // Add stack with version 1
-      currentStacks[stackKey] = 1;
-    } else {
-      // Remove stack declaration only
-      delete currentStacks[stackKey];
-    }
-
-    const next = {
-      ...recipe,
-      stacks: currentStacks,
-    };
-
-    onChange(next);
-  };
-
 
   const handleIngredientChange = (index: number, value: string) => {
     const newIngredients = [...safeIngredients];
@@ -74,7 +48,7 @@ export default function StructuredEditor({
       name: recipe.name,
       description: recipe.description,
       ingredients: finalIngredients,
-      instructions: safeInstructions as string[],
+      instructions: recipe.instructions as string[],
       meta: recipe['x-mise']?.parse
         ? {
             confidence: recipe['x-mise'].parse.confidence,
@@ -103,7 +77,7 @@ export default function StructuredEditor({
     const next = compileLiteRecipe({
       name: recipe.name,
       ingredients: newIngredients as string[],
-      instructions: safeInstructions as string[],
+      instructions: recipe.instructions as string[],
       meta: recipe['x-mise']?.parse
         ? {
             confidence: recipe['x-mise'].parse.confidence,
@@ -133,7 +107,7 @@ export default function StructuredEditor({
     const next = compileLiteRecipe({
       name: recipe.name,
       ingredients: finalIngredients as string[],
-      instructions: safeInstructions as string[],
+      instructions: recipe.instructions as string[],
       meta: recipe['x-mise']?.parse
         ? {
             confidence: recipe['x-mise'].parse.confidence,
