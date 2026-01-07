@@ -179,8 +179,131 @@ function PreviewTab({ recipe }: { recipe: SoustackLiteRecipe }) {
         >
           Ingredients
         </h3>
-        <ul style={{ margin: 0, paddingLeft: '24px' }}>
-          {ingredients.map((ingredient, idx) => (
+        {ingredients.length === 0 ? (
+          <p style={{ color: '#999', fontStyle: 'italic' }}>No ingredients provided</p>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: '24px', listStyle: 'none' }}>
+            {ingredients.map((ingredient, idx) => {
+              // String ingredient
+              if (typeof ingredient === 'string') {
+                const str = ingredient.trim();
+                if (str === '(not provided)' || str === '') return null;
+                return (
+                  <li
+                    key={idx}
+                    style={{
+                      marginBottom: '8px',
+                      fontSize: '16px',
+                      lineHeight: '1.6',
+                    }}
+                  >
+                    {str}
+                  </li>
+                );
+              }
+              // Structured object ingredient
+              if (typeof ingredient === 'object' && ingredient !== null) {
+                // Section
+                if ('section' in ingredient) {
+                  const section = ingredient as { section: { name: string; items: unknown[] } };
+                  return (
+                    <li key={idx} style={{ marginBottom: '24px' }}>
+                      <div
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          marginBottom: '8px',
+                          color: '#333',
+                        }}
+                      >
+                        {section.section.name || 'Untitled Section'}
+                      </div>
+                      <ul
+                        style={{
+                          margin: 0,
+                          paddingLeft: '24px',
+                          listStyle: 'none',
+                        }}
+                      >
+                        {section.section.items.map((item, itemIdx) => {
+                          if (typeof item === 'string') {
+                            return (
+                              <li
+                                key={itemIdx}
+                                style={{
+                                  marginBottom: '8px',
+                                  fontSize: '16px',
+                                  lineHeight: '1.6',
+                                }}
+                              >
+                                {item}
+                              </li>
+                            );
+                          }
+                          if (typeof item === 'object' && item !== null && 'name' in item) {
+                            const obj = item as {
+                              quantity?: string | number;
+                              unit?: string;
+                              name: string;
+                              scaling?: { mode?: string };
+                            };
+                            const parts: string[] = [];
+                            if (obj.quantity) parts.push(String(obj.quantity));
+                            if (obj.unit) parts.push(obj.unit);
+                            parts.push(obj.name);
+                            if (obj.scaling?.mode === 'toTaste') {
+                              parts.push('(to taste)');
+                            }
+                            return (
+                              <li
+                                key={itemIdx}
+                                style={{
+                                  marginBottom: '8px',
+                                  fontSize: '16px',
+                                  lineHeight: '1.6',
+                                }}
+                              >
+                                {parts.join(' ')}
+                              </li>
+                            );
+                          }
+                          return null;
+                        })}
+                      </ul>
+                    </li>
+                  );
+                }
+                // Structured ingredient object
+                if ('name' in ingredient) {
+                  const obj = ingredient as {
+                    quantity?: string | number;
+                    unit?: string;
+                    name: string;
+                    scaling?: { mode?: string };
+                  };
+                  const parts: string[] = [];
+                  if (obj.quantity) parts.push(String(obj.quantity));
+                  if (obj.unit) parts.push(obj.unit);
+                  parts.push(obj.name);
+                  if (obj.scaling?.mode === 'toTaste') {
+                    parts.push('(to taste)');
+                  }
+                  return (
+                    <li
+                      key={idx}
+                      style={{
+                        marginBottom: '8px',
+                        fontSize: '16px',
+                        lineHeight: '1.6',
+                      }}
+                    >
+                      {parts.join(' ')}
+                    </li>
+                  );
+                }
+              }
+              // Fallback: convert to string
+              return (
             <li
               key={idx}
               style={{
@@ -191,8 +314,10 @@ function PreviewTab({ recipe }: { recipe: SoustackLiteRecipe }) {
             >
               {String(ingredient)}
             </li>
-          ))}
+              );
+            })}
         </ul>
+        )}
       </section>
 
       <section>

@@ -4,6 +4,7 @@ import type { SoustackLiteRecipe, SoustackProfile } from '@/lib/mise/types';
 import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import MiseEnPlaceSection from './MiseEnPlaceSection';
+import IngredientsSection from './IngredientsSection';
 
 type StructuredEditorProps = {
   recipe: SoustackLiteRecipe;
@@ -390,76 +391,8 @@ export default function StructuredEditor({
           </div>
         </div>
 
-        <div style={{ marginBottom: '32px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <label
-              style={{
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              Ingredients
-            </label>
-            <button
-              onClick={handleAddIngredient}
-              style={{
-                padding: '6px 12px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                cursor: 'pointer',
-                fontSize: '13px',
-              }}
-            >
-              + Add ingredient
-            </button>
-          </div>
-          {safeIngredients.map((ingredient, idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                gap: '8px',
-                marginBottom: '8px',
-              }}
-            >
-              <input
-                type="text"
-                value={ingredient}
-                onChange={(e) => handleIngredientChange(idx, e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  border: '1px solid #d0d0d0',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                }}
-              />
-              <button
-                onClick={() => handleRemoveIngredient(idx)}
-                disabled={safeIngredients.length === 1}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #d0d0d0',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  cursor: safeIngredients.length === 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  opacity: safeIngredients.length === 1 ? 0.5 : 1,
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
+        {/* Ingredients section */}
+        <IngredientsSection recipe={recipe} onChange={onChange} />
 
         <div style={{ marginBottom: '32px' }}>
           <div
