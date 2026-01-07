@@ -90,23 +90,23 @@ function PreviewTab({ recipe }: { recipe: SoustackLiteRecipe }) {
     ? recipe.instructions
     : [];
 
-  // Get mise en place items if prep@1 stack is enabled
+  // Get mise en place items from top-level recipe.miseEnPlace
   const miseEnPlaceItems: Array<{ text: string }> = [];
-  if ('prep@1' in recipe.stacks && recipe.stacks['prep@1'] !== undefined) {
-    const prepData = recipe.stacks['prep@1'];
-    if (Array.isArray(prepData)) {
-      prepData.forEach((item) => {
-        if (
-          typeof item === 'object' &&
-          item !== null &&
-          'text' in item &&
-          typeof item.text === 'string' &&
-          item.text.trim().length > 0
-        ) {
-          miseEnPlaceItems.push({ text: item.text });
-        }
-      });
-    }
+  const recipeWithMiseEnPlace = recipe as SoustackLiteRecipe & {
+    miseEnPlace?: Array<{ text: string }>;
+  };
+  if (recipeWithMiseEnPlace.miseEnPlace && Array.isArray(recipeWithMiseEnPlace.miseEnPlace)) {
+    recipeWithMiseEnPlace.miseEnPlace.forEach((item) => {
+      if (
+        typeof item === 'object' &&
+        item !== null &&
+        'text' in item &&
+        typeof item.text === 'string' &&
+        item.text.trim().length > 0
+      ) {
+        miseEnPlaceItems.push({ text: item.text });
+      }
+    });
   }
 
   return (

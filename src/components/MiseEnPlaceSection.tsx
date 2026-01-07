@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import { isStackEnabled } from '@/lib/mise/stacks';
 
 type MiseEnPlaceItem = {
   text: string;
@@ -14,8 +15,8 @@ type MiseEnPlaceSectionProps = {
 
 /**
  * Mise en Place section component
- * - Visible when prep capability is enabled (recipe.stacks['prep'])
- * - Content stored in recipe.stacks['prep@1'] (preserves existing payload)
+ * - Visible when prep capability is enabled (recipe.stacks.prep)
+ * - Content stored in top-level recipe.miseEnPlace (array of {text,...})
  * - Checklist-style free text items
  * - Orderable items
  */
@@ -23,15 +24,18 @@ export default function MiseEnPlaceSection({
   recipe,
   onChange,
 }: MiseEnPlaceSectionProps) {
-  // Check for prep capability declaration (not prep@1 content)
-  const isEnabled = 'prep' in recipe.stacks && recipe.stacks['prep'] !== undefined;
+  // Check for prep capability declaration (unversioned key only)
+  const isEnabled = isStackEnabled(recipe.stacks, 'prep');
   
-  // Get mise en place items from stacks
+  // Get mise en place items from top-level recipe.miseEnPlace
   const getMiseEnPlaceItems = (): MiseEnPlaceItem[] => {
     if (!isEnabled) return [];
-    const prepData = recipe.stacks['prep@1'];
-    if (Array.isArray(prepData)) {
-      return prepData.filter((item): item is MiseEnPlaceItem => 
+    const recipeWithMiseEnPlace = recipe as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
+    };
+    const miseEnPlace = recipeWithMiseEnPlace.miseEnPlace;
+    if (Array.isArray(miseEnPlace)) {
+      return miseEnPlace.filter((item): item is MiseEnPlaceItem => 
         typeof item === 'object' && item !== null && 'text' in item && typeof item.text === 'string'
       );
     }
@@ -47,7 +51,7 @@ export default function MiseEnPlaceSection({
     setItems(currentItems);
     setIsExpanded(isEnabled);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipe.stacks]);
+  }, [recipe.stacks, (recipe as SoustackLiteRecipe & { miseEnPlace?: Array<{ text: string }> }).miseEnPlace]);
 
   const handleItemChange = (index: number, text: string) => {
     const newItems = [...items];
@@ -84,10 +88,11 @@ export default function MiseEnPlaceSection({
     const next = { ...recipe };
     // Filter out empty items
     const filteredItems = newItems.filter((item) => item.text.trim().length > 0);
-    next.stacks = {
-      ...next.stacks,
-      'prep@1': filteredItems,
+    // Store in top-level miseEnPlace field, not in stacks
+    const nextWithMiseEnPlace = next as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
     };
+    nextWithMiseEnPlace.miseEnPlace = filteredItems.length > 0 ? filteredItems : undefined;
     onChange(next);
   };
 

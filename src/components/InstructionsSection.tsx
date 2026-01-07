@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import { isStackEnabled } from '@/lib/mise/stacks';
 
 // Types for instruction structures
 type InstructionString = string;
@@ -29,9 +30,9 @@ type InstructionsSectionProps = {
 /**
  * Instructions section component
  * - Supports flat lists (strings) - default
- * - Supports structured objects (with id, text) when structured@1 enabled
- * - Supports timing controls when timed@1 enabled
- * - Supports referenced inputs when referenced@1 enabled
+ * - Supports structured objects (with id, text) when structured stack enabled
+ * - Supports timing controls when timed stack enabled
+ * - Supports referenced inputs when referenced stack enabled
  * - Preserves unknown fields
  * - Never throws, never deletes user content
  */
@@ -39,9 +40,9 @@ export default function InstructionsSection({
   recipe,
   onChange,
 }: InstructionsSectionProps) {
-  const hasStructured = 'structured@1' in recipe.stacks && recipe.stacks['structured@1'] !== undefined;
-  const hasTimed = 'timed@1' in recipe.stacks && recipe.stacks['timed@1'] !== undefined;
-  const hasReferenced = 'referenced@1' in recipe.stacks && recipe.stacks['referenced@1'] !== undefined;
+  const hasStructured = isStackEnabled(recipe.stacks, 'structured');
+  const hasTimed = isStackEnabled(recipe.stacks, 'timed');
+  const hasReferenced = isStackEnabled(recipe.stacks, 'referenced');
 
   // Parse instructions array into structured items
   const parseInstructions = (): InstructionItem[] => {
@@ -347,7 +348,7 @@ export default function InstructionsSection({
           />
         </div>
 
-        {/* Timing controls (when timed@1 enabled) */}
+        {/* Timing controls (when timed stack enabled) */}
         {hasTimed && (
           <div
             style={{
@@ -475,7 +476,7 @@ export default function InstructionsSection({
           </div>
         )}
 
-        {/* Referenced inputs (when referenced@1 enabled) */}
+        {/* Referenced inputs (when referenced stack enabled) */}
         {hasReferenced && (
           <div
             style={{

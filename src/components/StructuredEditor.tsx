@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import type { SoustackLiteRecipe, SoustackProfile } from '@/lib/mise/types';
 import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
+import { migrateVersionedStackKeys } from '@/lib/mise/stacks';
 import MiseEnPlaceSection from './MiseEnPlaceSection';
 import IngredientsSection from './IngredientsSection';
 import CapabilitiesPanel from './CapabilitiesPanel';
@@ -21,8 +23,59 @@ export default function StructuredEditor({
   onChange,
   miseMode = 'draft',
 }: StructuredEditorProps) {
-  const ingredients = Array.isArray(recipe.ingredients)
-    ? (recipe.ingredients as string[])
+  // Normalize recipe at the edge: migrate versioned stack keys and prep data
+  const normalizedRecipeRef = useRef<SoustackLiteRecipe | null>(null);
+
+  useEffect(() => {
+    let normalized = { ...recipe };
+    let hasChanges = false;
+
+    // Check for prep data migration BEFORE migrating stack keys
+    const recipeWithMiseEnPlace = normalized as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
+    };
+    const currentMiseEnPlace = recipeWithMiseEnPlace.miseEnPlace;
+    
+    // Migrate prep data from stacks['prep@1'] to recipe.miseEnPlace (only if not already migrated)
+    if (!currentMiseEnPlace && 'prep@1' in recipe.stacks && recipe.stacks['prep@1'] !== undefined) {
+      const prepData = recipe.stacks['prep@1'];
+      if (Array.isArray(prepData)) {
+        const miseEnPlaceItems = prepData.filter(
+          (item): item is { text: string } =>
+            typeof item === 'object' &&
+            item !== null &&
+            'text' in item &&
+            typeof item.text === 'string'
+        );
+        if (miseEnPlaceItems.length > 0) {
+          recipeWithMiseEnPlace.miseEnPlace = miseEnPlaceItems;
+          hasChanges = true;
+        }
+      }
+    }
+
+    // Migrate versioned stack keys to unversioned format
+    const normalizedStacks = migrateVersionedStackKeys(normalized.stacks);
+    if (normalizedStacks !== normalized.stacks) {
+      normalized.stacks = normalizedStacks;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      normalizedRecipeRef.current = normalized;
+      onChange(normalized);
+    } else {
+      normalizedRecipeRef.current = recipe;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe]);
+
+  // Use normalized recipe if available, otherwise use original
+  const currentRecipe =
+    normalizedRecipeRef.current || recipe;
+
+  const ingredients = Array.isArray(currentRecipe.ingredients)
+    ? (currentRecipe.ingredients as string[])
     : [];
 
   // Ensure we always have at least one item in each array
@@ -30,7 +83,7 @@ export default function StructuredEditor({
 
   const handleNameChange = (name: string) => {
     const next = {
-      ...recipe,
+      ...currentRecipe,
       name: name.trim() || 'Untitled Recipe',
     };
     onChange(next);
@@ -45,28 +98,38 @@ export default function StructuredEditor({
     const finalIngredients = filtered.length > 0 ? filtered : [''];
 
     const next = compileLiteRecipe({
-      name: recipe.name,
-      description: recipe.description,
+      name: currentRecipe.name,
+      description: currentRecipe.description,
       ingredients: finalIngredients,
-      instructions: recipe.instructions as string[],
-      meta: recipe['x-mise']?.parse
+      instructions: currentRecipe.instructions as string[],
+      meta: currentRecipe['x-mise']?.parse
         ? {
-            confidence: recipe['x-mise'].parse.confidence,
-            mode: recipe['x-mise'].parse.mode,
+            confidence: currentRecipe['x-mise'].parse.confidence,
+            mode: currentRecipe['x-mise'].parse.mode,
           }
         : undefined,
     });
 
     // Preserve profile and stacks
-    next.profile = recipe.profile;
-    next.stacks = { ...recipe.stacks };
+    next.profile = currentRecipe.profile;
+    next.stacks = { ...currentRecipe.stacks };
 
     // Preserve x-mise prose if it exists
-    if (recipe['x-mise']?.prose) {
+    if (currentRecipe['x-mise']?.prose) {
       next['x-mise'] = {
         ...next['x-mise'],
-        prose: recipe['x-mise'].prose,
+        prose: currentRecipe['x-mise'].prose,
       };
+    }
+
+    // Preserve miseEnPlace if it exists
+    const recipeWithMiseEnPlace = currentRecipe as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
+    };
+    if (recipeWithMiseEnPlace.miseEnPlace) {
+      (next as SoustackLiteRecipe & {
+        miseEnPlace?: Array<{ text: string }>;
+      }).miseEnPlace = recipeWithMiseEnPlace.miseEnPlace;
     }
 
     onChange(next);
@@ -75,25 +138,35 @@ export default function StructuredEditor({
   const handleAddIngredient = () => {
     const newIngredients = [...safeIngredients, ''];
     const next = compileLiteRecipe({
-      name: recipe.name,
+      name: currentRecipe.name,
       ingredients: newIngredients as string[],
-      instructions: recipe.instructions as string[],
-      meta: recipe['x-mise']?.parse
+      instructions: currentRecipe.instructions as string[],
+      meta: currentRecipe['x-mise']?.parse
         ? {
-            confidence: recipe['x-mise'].parse.confidence,
-            mode: recipe['x-mise'].parse.mode,
+            confidence: currentRecipe['x-mise'].parse.confidence,
+            mode: currentRecipe['x-mise'].parse.mode,
           }
         : undefined,
     });
 
     // Preserve stacks
-    next.stacks = { ...recipe.stacks };
+    next.stacks = { ...currentRecipe.stacks };
 
-    if (recipe['x-mise']?.prose) {
+    if (currentRecipe['x-mise']?.prose) {
       next['x-mise'] = {
         ...next['x-mise'],
-        prose: recipe['x-mise'].prose,
+        prose: currentRecipe['x-mise'].prose,
       };
+    }
+
+    // Preserve miseEnPlace if it exists
+    const recipeWithMiseEnPlace = currentRecipe as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
+    };
+    if (recipeWithMiseEnPlace.miseEnPlace) {
+      (next as SoustackLiteRecipe & {
+        miseEnPlace?: Array<{ text: string }>;
+      }).miseEnPlace = recipeWithMiseEnPlace.miseEnPlace;
     }
 
     onChange(next);
@@ -105,25 +178,35 @@ export default function StructuredEditor({
     const finalIngredients = newIngredients.length > 0 ? newIngredients : [''];
 
     const next = compileLiteRecipe({
-      name: recipe.name,
+      name: currentRecipe.name,
       ingredients: finalIngredients as string[],
-      instructions: recipe.instructions as string[],
-      meta: recipe['x-mise']?.parse
+      instructions: currentRecipe.instructions as string[],
+      meta: currentRecipe['x-mise']?.parse
         ? {
-            confidence: recipe['x-mise'].parse.confidence,
-            mode: recipe['x-mise'].parse.mode,
+            confidence: currentRecipe['x-mise'].parse.confidence,
+            mode: currentRecipe['x-mise'].parse.mode,
           }
         : undefined,
     });
 
     // Preserve stacks
-    next.stacks = { ...recipe.stacks };
+    next.stacks = { ...currentRecipe.stacks };
 
-    if (recipe['x-mise']?.prose) {
+    if (currentRecipe['x-mise']?.prose) {
       next['x-mise'] = {
         ...next['x-mise'],
-        prose: recipe['x-mise'].prose,
+        prose: currentRecipe['x-mise'].prose,
       };
+    }
+
+    // Preserve miseEnPlace if it exists
+    const recipeWithMiseEnPlace = currentRecipe as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
+    };
+    if (recipeWithMiseEnPlace.miseEnPlace) {
+      (next as SoustackLiteRecipe & {
+        miseEnPlace?: Array<{ text: string }>;
+      }).miseEnPlace = recipeWithMiseEnPlace.miseEnPlace;
     }
 
     onChange(next);
@@ -134,10 +217,10 @@ export default function StructuredEditor({
     // Changing profile does NOT auto-add or remove stacks
     // Profile selection is explicit author intent
     const next: SoustackLiteRecipe = {
-      ...recipe,
+      ...currentRecipe,
       profile,
       // Preserve existing stacks - do not mutate
-      stacks: recipe.stacks || {},
+      stacks: currentRecipe.stacks || {},
     };
     onChange(next);
   };
@@ -175,7 +258,7 @@ export default function StructuredEditor({
               Soustack Profile
             </label>
             <select
-              value={recipe.profile}
+              value={currentRecipe.profile}
               onChange={(e) => handleProfileChange(e.target.value as SoustackProfile)}
               style={{
                 width: '100%',
@@ -205,12 +288,12 @@ export default function StructuredEditor({
               Profile selection does not auto-modify content
             </div>
           </div>
-          <CapabilitiesPanel recipe={recipe} onChange={onChange} />
+          <CapabilitiesPanel recipe={currentRecipe} onChange={onChange} />
         </div>
         {/* Main editor content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {/* Mise Check Panel - only visible in Mise mode */}
-        {miseMode === 'mise' && <MiseCheckPanel recipe={recipe} />}
+        {miseMode === 'mise' && <MiseCheckPanel recipe={currentRecipe} />}
         <div style={{ marginBottom: '32px' }}>
           <label
             style={{
@@ -224,7 +307,7 @@ export default function StructuredEditor({
           </label>
           <input
             type="text"
-            value={recipe.name}
+            value={currentRecipe.name}
             onChange={(e) => handleNameChange(e.target.value)}
             style={{
               width: '100%',
@@ -237,16 +320,16 @@ export default function StructuredEditor({
         </div>
 
         {/* Ingredients section */}
-        <IngredientsSection recipe={recipe} onChange={onChange} />
+        <IngredientsSection recipe={currentRecipe} onChange={onChange} />
 
         {/* Instructions section */}
-        <InstructionsSection recipe={recipe} onChange={onChange} />
+        <InstructionsSection recipe={currentRecipe} onChange={onChange} />
 
         {/* Mise en Place section */}
-        <MiseEnPlaceSection recipe={recipe} onChange={onChange} />
+        <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />
 
         {/* After Cooking section */}
-        <AfterCookingSection recipe={recipe} onChange={onChange} />
+        <AfterCookingSection recipe={currentRecipe} onChange={onChange} />
         </div>
       </div>
     </div>

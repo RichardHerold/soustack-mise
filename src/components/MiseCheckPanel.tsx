@@ -1,6 +1,7 @@
 'use client';
 
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import { isStackEnabled, migrateVersionedStackKeys } from '@/lib/mise/stacks';
 
 type MiseCheckPanelProps = {
   recipe: SoustackLiteRecipe;
@@ -15,41 +16,37 @@ type CheckItem = {
 /**
  * Pure function to compute validation checks for a recipe.
  * Returns an array of check items based on profile, stacks, and field presence.
+ * Uses only unversioned stack keys (canonical convention).
  */
 export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
   const checks: CheckItem[] = [];
   const stacks = recipe.stacks || {};
 
-  // Helper to check if a stack is enabled (supports both 'stack' and 'stack@1' formats)
-  const isStackEnabled = (stackName: string): boolean => {
-    return (
-      stackName in stacks ||
-      `${stackName}@1` in stacks ||
-      Object.keys(stacks).some((key) => key.startsWith(`${stackName}@`))
-    );
-  };
-
-  // Helper to get stack data (tries both formats)
-  const getStackData = (stackName: string): unknown => {
-    if (stackName in stacks) return stacks[stackName];
-    if (`${stackName}@1` in stacks) return stacks[`${stackName}@1`];
-    const versionedKey = Object.keys(stacks).find((key) => key.startsWith(`${stackName}@`));
-    return versionedKey ? stacks[versionedKey] : undefined;
-  };
+  // Check for legacy versioned keys (pre-migration)
+  const hasLegacyKeys = Object.keys(stacks).some((key) => key.includes('@'));
+  if (hasLegacyKeys) {
+    checks.push({
+      id: 'legacy-stack-keys',
+      severity: 'info',
+      message: 'Legacy stack keys were migrated to unversioned format.',
+    });
+  }
 
   // Check 1: Prep enabled but miseEnPlace empty
-  if (isStackEnabled('prep')) {
-    const prepData = getStackData('prep');
+  if (isStackEnabled(stacks, 'prep')) {
+    const recipeWithMiseEnPlace = recipe as SoustackLiteRecipe & {
+      miseEnPlace?: Array<{ text: string }>;
+    };
+    const miseEnPlace = recipeWithMiseEnPlace.miseEnPlace;
     const isEmpty =
-      prepData === undefined ||
-      prepData === null ||
-      (Array.isArray(prepData) && prepData.length === 0) ||
-      (Array.isArray(prepData) &&
-        prepData.every(
-          (item) =>
-            !item ||
-            (typeof item === 'object' && (!('text' in item) || !item.text || String(item.text).trim() === ''))
-        ));
+      !miseEnPlace ||
+      !Array.isArray(miseEnPlace) ||
+      miseEnPlace.length === 0 ||
+      miseEnPlace.every(
+        (item) =>
+          !item ||
+          (typeof item === 'object' && (!('text' in item) || !item.text || String(item.text).trim() === ''))
+      );
     if (isEmpty) {
       checks.push({
         id: 'prep-empty',
@@ -60,18 +57,27 @@ export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
   }
 
   // Check 2: Storage enabled but missing duration/method
-  if (isStackEnabled('storage')) {
-    const storageData = getStackData('storage');
+  if (isStackEnabled(stacks, 'storage')) {
+    const recipeWithStorage = recipe as SoustackLiteRecipe & {
+      storage?: {
+        refrigerated?: { duration?: { iso8601?: string } };
+        frozen?: { duration?: { iso8601?: string } };
+        roomTemp?: { duration?: { iso8601?: string } };
+      };
+    };
+    const storageData = recipeWithStorage.storage;
     const hasDuration =
       storageData &&
       typeof storageData === 'object' &&
       storageData !== null &&
-      ('duration' in storageData || 'maxDuration' in storageData || 'minDuration' in storageData);
+      ((storageData.refrigerated?.duration?.iso8601) ||
+        (storageData.frozen?.duration?.iso8601) ||
+        (storageData.roomTemp?.duration?.iso8601));
     const hasMethod =
       storageData &&
       typeof storageData === 'object' &&
       storageData !== null &&
-      ('method' in storageData || 'location' in storageData);
+      (storageData.refrigerated || storageData.frozen || storageData.roomTemp);
     if (!hasDuration && !hasMethod) {
       checks.push({
         id: 'storage-incomplete',
@@ -94,7 +100,7 @@ export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
   }
 
   // Check 3: Timed enabled but instructions are plain strings
-  if (isStackEnabled('timed')) {
+  if (isStackEnabled(stacks, 'timed')) {
     const instructions = recipe.instructions || [];
     const hasPlainStrings = instructions.some((inst) => typeof inst === 'string');
     const hasStructured = instructions.some(
@@ -104,19 +110,19 @@ export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
         ('duration' in inst || 'time' in inst || 'timer' in inst)
     );
     if (hasPlainStrings && !hasStructured) {
-      const hasStructuredStack = isStackEnabled('structured');
+      const hasStructuredStack = isStackEnabled(stacks, 'structured');
       checks.push({
         id: 'timed-plain-strings',
         severity: hasStructuredStack ? 'info' : 'warning',
         message: hasStructuredStack
           ? 'Timed stack is enabled but instructions contain plain strings. Consider converting steps to structured format with timing information.'
-          : 'Timed stack is enabled but instructions are plain strings. Consider enabling structured@1 stack or converting steps to include timing information.',
+          : 'Timed stack is enabled but instructions are plain strings. Consider enabling structured stack or converting steps to include timing information.',
       });
     }
   }
 
   // Check 4: Referenced enabled but structured steps missing inputs[]
-  if (isStackEnabled('referenced')) {
+  if (isStackEnabled(stacks, 'referenced')) {
     const instructions = recipe.instructions || [];
     const hasStructuredSteps = instructions.some(
       (inst) => inst && typeof inst === 'object' && ('text' in inst || 'instruction' in inst)
@@ -148,8 +154,10 @@ export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
   }
 
   // Check 5: Equipment enabled but equipment list missing
-  if (isStackEnabled('equipment')) {
-    const equipmentData = getStackData('equipment');
+  if (isStackEnabled(stacks, 'equipment')) {
+    // Equipment data is not stored in a top-level field yet, so we check stacks
+    // This is a placeholder check - equipment data structure may be defined elsewhere
+    const equipmentData = stacks.equipment;
     const isEmpty =
       equipmentData === undefined ||
       equipmentData === null ||
@@ -171,7 +179,7 @@ export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
   }
 
   // Check 6: Structured stack enabled but instructions are plain strings
-  if (isStackEnabled('structured')) {
+  if (isStackEnabled(stacks, 'structured')) {
     const instructions = recipe.instructions || [];
     const hasPlainStrings = instructions.some((inst) => typeof inst === 'string');
     if (hasPlainStrings) {

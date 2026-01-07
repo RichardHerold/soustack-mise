@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import { isStackEnabled, disableStack } from '@/lib/mise/stacks';
 
 // Types for storage structures
 type StorageMethod = {
@@ -34,19 +35,18 @@ type AfterCookingSectionProps = {
 
 /**
  * After Cooking section component (Storage & leftovers)
- * - Visible when storage@1 stack is enabled
+ * - Visible when storage stack is enabled (recipe.stacks.storage)
  * - Collapsed suggestion when disabled
  * - Storage methods: refrigerated, frozen, roomTemp
  * - Leftovers reheat instructions
+ * - Data stored in top-level recipe.storage, never cleared when disabling
  */
 export default function AfterCookingSection({
   recipe,
   onChange,
 }: AfterCookingSectionProps) {
-  // Check for storage@1 (versioned) or storage (capability declaration)
-  const isEnabled =
-    ('storage@1' in recipe.stacks && recipe.stacks['storage@1'] !== undefined) ||
-    ('storage' in recipe.stacks && recipe.stacks['storage'] !== undefined);
+  // Check for storage capability declaration (unversioned key only)
+  const isEnabled = isStackEnabled(recipe.stacks, 'storage');
 
   // Get storage data from recipe
   const getStorageData = (): StorageData => {
@@ -67,18 +67,22 @@ export default function AfterCookingSection({
   const handleToggleStack = () => {
     const next = { ...recipe };
     if (isEnabled) {
-      // Disable: remove storage@1 from stacks and clear storage data
-      const { 'storage@1': _, ...restStacks } = next.stacks;
-      next.stacks = restStacks;
-      delete (next as SoustackLiteRecipe & { storage?: StorageData }).storage;
-      setStorageData({});
+      // Disable: remove storage declaration from stacks only
+      // Preserve storage data for republish (do not clear)
+      next.stacks = disableStack(next.stacks, 'storage');
     } else {
-      // Enable: add storage@1 to stacks (versioned key as per requirements)
+      // Enable: add unversioned storage key to stacks
       next.stacks = {
         ...next.stacks,
-        'storage@1': 1,
+        storage: 1,
       };
-      setStorageData({});
+      // Initialize empty storage data if it doesn't exist
+      const recipeWithStorage = next as SoustackLiteRecipe & {
+        storage?: StorageData;
+      };
+      if (!recipeWithStorage.storage) {
+        setStorageData({});
+      }
     }
     onChange(next);
   };

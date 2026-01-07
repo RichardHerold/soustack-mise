@@ -1,6 +1,7 @@
 'use client';
 
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import { isStackEnabled, enableStack, disableStack } from '@/lib/mise/stacks';
 
 type CapabilitiesPanelProps = {
   recipe: SoustackLiteRecipe;
@@ -11,7 +12,7 @@ type CapabilitiesPanelProps = {
  * Capability toggles for recipe stacks
  * - Shows toggles for: prep, equipment, timed, storage, scaling
  * - Optionally: structured, referenced, illustrated (for future use)
- * - Toggle ON/OFF mutates only recipe.stacks[stack] = 1 or deletes the key
+ * - Toggle ON/OFF uses unversioned keys only (e.g., "prep": 1, not "prep@1")
  * - Toggling only declares capability; does not create content
  */
 export default function CapabilitiesPanel({
@@ -19,20 +20,13 @@ export default function CapabilitiesPanel({
   onChange,
 }: CapabilitiesPanelProps) {
   const handleStackToggle = (stackName: string, enabled: boolean) => {
-    const currentStacks = { ...recipe.stacks };
-    
-    if (enabled) {
-      // Add stack with version 1 (just capability declaration)
-      currentStacks[stackName] = 1;
-    } else {
-      // Remove stack declaration only
-      // Preserve any existing payload blocks (e.g., prep@1, scaling@1) if present
-      delete currentStacks[stackName];
-    }
+    const nextStacks = enabled
+      ? enableStack(recipe.stacks, stackName)
+      : disableStack(recipe.stacks, stackName);
 
     const next = {
       ...recipe,
-      stacks: currentStacks,
+      stacks: nextStacks,
     };
 
     onChange(next);
@@ -55,7 +49,7 @@ export default function CapabilitiesPanel({
   ] as const;
 
   const isEnabled = (stackKey: string) => {
-    return stackKey in recipe.stacks && recipe.stacks[stackKey] !== undefined;
+    return isStackEnabled(recipe.stacks, stackKey);
   };
 
   return (
