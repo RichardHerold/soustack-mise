@@ -5,12 +5,15 @@ import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import MiseEnPlaceSection from './MiseEnPlaceSection';
 import IngredientsSection from './IngredientsSection';
+import CapabilitiesPanel from './CapabilitiesPanel';
 import AfterCookingSection from './AfterCookingSection';
 import InstructionsSection from './InstructionsSection';
+import MiseCheckPanel from './MiseCheckPanel';
 
 type StructuredEditorProps = {
   recipe: SoustackLiteRecipe;
   onChange: (next: SoustackLiteRecipe) => void;
+  miseMode?: 'draft' | 'mise';
 };
 
 export default function StructuredEditor({
@@ -21,9 +24,13 @@ export default function StructuredEditor({
   const ingredients = Array.isArray(recipe.ingredients)
     ? (recipe.ingredients as string[])
     : [];
+  const instructions = Array.isArray(recipe.instructions)
+    ? (recipe.instructions as string[])
+    : [];
 
   // Ensure we always have at least one item in each array
   const safeIngredients = ingredients.length > 0 ? ingredients : [''];
+  const safeInstructions = instructions.length > 0 ? instructions : [''];
 
   const handleNameChange = (name: string) => {
     const next = {
@@ -35,13 +42,15 @@ export default function StructuredEditor({
 
   const handleStackToggle = (stackName: string, enabled: boolean) => {
     const currentStacks = { ...recipe.stacks };
+    // Stack keys include "@1" suffix to match component checks
+    const stackKey = `${stackName}@1`;
     
     if (enabled) {
       // Add stack with version 1
-      currentStacks[stackName] = 1;
+      currentStacks[stackKey] = 1;
     } else {
       // Remove stack declaration only
-      delete currentStacks[stackName];
+      delete currentStacks[stackKey];
     }
 
     const next = {
@@ -51,6 +60,7 @@ export default function StructuredEditor({
 
     onChange(next);
   };
+
 
   const handleIngredientChange = (index: number, value: string) => {
     const newIngredients = [...safeIngredients];
@@ -221,6 +231,7 @@ export default function StructuredEditor({
               Profile selection does not auto-modify content
             </div>
           </div>
+          <CapabilitiesPanel recipe={recipe} onChange={onChange} />
         </div>
         {/* Main editor content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
@@ -251,134 +262,11 @@ export default function StructuredEditor({
           />
         </div>
 
-        <div style={{ marginBottom: '32px' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '12px',
-              fontSize: '14px',
-              fontWeight: 500,
-            }}
-          >
-            Stacks
-          </label>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
-            {(['Prep', 'Equipment', 'Timed', 'Storage', 'Scaling'] as const).map((stackName) => {
-              const stackKey = stackName.toLowerCase();
-              const isEnabled = stackKey in recipe.stacks && recipe.stacks[stackKey] !== undefined;
-              return (
-                <label
-                  key={stackKey}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px 12px',
-                    border: '1px solid #d0d0d0',
-                    borderRadius: '4px',
-                    backgroundColor: isEnabled ? '#f0f9ff' : '#fff',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    userSelect: 'none',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isEnabled}
-                    onChange={(e) => handleStackToggle(stackKey, e.target.checked)}
-                    style={{
-                      cursor: 'pointer',
-                    }}
-                  />
-                  <span>{stackName}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Ingredients section */}
         <IngredientsSection recipe={recipe} onChange={onChange} />
 
-        <div style={{ marginBottom: '32px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <label
-              style={{
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              Instructions
-            </label>
-            <button
-              onClick={handleAddInstruction}
-              style={{
-                padding: '6px 12px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                cursor: 'pointer',
-                fontSize: '13px',
-              }}
-            >
-              + Add step
-            </button>
-          </div>
-          {safeInstructions.map((instruction, idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                gap: '8px',
-                marginBottom: '8px',
-              }}
-            >
-              <textarea
-                value={instruction}
-                onChange={(e) => handleInstructionChange(idx, e.target.value)}
-                rows={2}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  border: '1px solid #d0d0d0',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  resize: 'vertical',
-                }}
-              />
-              <button
-                onClick={() => handleRemoveInstruction(idx)}
-                disabled={safeInstructions.length === 1}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #d0d0d0',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  cursor: safeInstructions.length === 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  opacity: safeInstructions.length === 1 ? 0.5 : 1,
-                  alignSelf: 'flex-start',
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
+        {/* Instructions section */}
+        <InstructionsSection recipe={recipe} onChange={onChange} />
 
         {/* Mise en Place section */}
         <MiseEnPlaceSection recipe={recipe} onChange={onChange} />
