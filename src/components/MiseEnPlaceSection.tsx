@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
 
 type MiseEnPlaceItem = {
@@ -41,11 +41,11 @@ export default function MiseEnPlaceSection({
   const [isExpanded, setIsExpanded] = useState(isEnabled);
 
   // Sync items when recipe changes externally
-  const currentItems = getMiseEnPlaceItems();
-  if (JSON.stringify(currentItems) !== JSON.stringify(items)) {
+  useEffect(() => {
+    const currentItems = getMiseEnPlaceItems();
     setItems(currentItems);
     setIsExpanded(isEnabled);
-  }
+  }, [recipe.stacks, isEnabled]);
 
   const handleToggleStack = () => {
     const next = { ...recipe };
@@ -229,7 +229,7 @@ export default function MiseEnPlaceSection({
             fontSize: '14px',
           }}
         >
-          No preparation steps yet. Click "+ Add item" to get started.
+          No preparation steps yet. Click &quot;+ Add item&quot; to get started.
         </div>
       ) : (
         items.map((item, idx) => (
