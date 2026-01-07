@@ -45,7 +45,8 @@ export default function MiseEnPlaceSection({
     const currentItems = getMiseEnPlaceItems();
     setItems(currentItems);
     setIsExpanded(isEnabled);
-  }, [recipe.stacks, isEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe.stacks]);
 
   const handleToggleStack = () => {
     const next = { ...recipe };
