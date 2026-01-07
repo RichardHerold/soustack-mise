@@ -222,7 +222,7 @@ export default function StructuredEditor({
         </h2>
       </div>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Main editor content */}
+        {/* Main editor content - expands to full width when rail is not present */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
           {/* Mise Check Panel - only visible in Mise mode, shown as progress bar */}
           {isMiseMode && <MiseCheckPanel recipe={currentRecipe} />}
@@ -264,7 +264,8 @@ export default function StructuredEditor({
           <AfterCookingSection recipe={currentRecipe} onChange={onChange} />
         </div>
 
-        {/* Mise Guidance Rail - only visible in Mise mode */}
+        {/* Mise Guidance Rail - only visible in Mise mode when checks exist */}
+        {/* Returns null when checks.length === 0, allowing main editor to expand to full width */}
         {isMiseMode && (
           <MiseGuidanceRail recipe={currentRecipe} onChange={onChange} />
         )}
