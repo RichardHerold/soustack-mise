@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
-import { isStackEnabled, disableStack } from '@/lib/mise/stacks';
+import { isStackEnabled, enableStack, disableStack } from '@/lib/mise/stacks';
 
 // Types for storage structures
 type StorageMethod = {
@@ -72,10 +72,7 @@ export default function AfterCookingSection({
       next.stacks = disableStack(next.stacks, 'storage');
     } else {
       // Enable: add unversioned storage key to stacks
-      next.stacks = {
-        ...next.stacks,
-        storage: 1,
-      };
+      next.stacks = enableStack(next.stacks, 'storage');
       // Initialize empty storage data if it doesn't exist
       const recipeWithStorage = next as SoustackLiteRecipe & {
         storage?: StorageData;

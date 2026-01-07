@@ -27,7 +27,7 @@ describe('InstructionsSection data structures', () => {
     const recipe: SoustackLiteRecipe = {
       $schema: 'https://soustack.spec/soustack.schema.json',
       profile: 'lite',
-      stacks: { 'structured@1': 1 },
+      stacks: { structured: 1 },
       name: 'Test Recipe',
       ingredients: [],
       instructions: [
@@ -46,11 +46,11 @@ describe('InstructionsSection data structures', () => {
     }
   });
 
-  it('should handle instructions with timing when timed@1 is enabled', () => {
+  it('should handle instructions with timing when timed stack is enabled', () => {
     const recipe: SoustackLiteRecipe = {
       $schema: 'https://soustack.spec/soustack.schema.json',
       profile: 'lite',
-      stacks: { 'timed@1': 1 },
+      stacks: { timed: 1 },
       name: 'Test Recipe',
       ingredients: [],
       instructions: [
@@ -83,11 +83,11 @@ describe('InstructionsSection data structures', () => {
     }
   });
 
-  it('should handle instructions with referenced inputs when referenced@1 is enabled', () => {
+  it('should handle instructions with referenced inputs when referenced stack is enabled', () => {
     const recipe: SoustackLiteRecipe = {
       $schema: 'https://soustack.spec/soustack.schema.json',
       profile: 'lite',
-      stacks: { 'referenced@1': 1 },
+      stacks: { referenced: 1 },
       name: 'Test Recipe',
       ingredients: [],
       instructions: [
@@ -117,9 +117,9 @@ describe('InstructionsSection data structures', () => {
       $schema: 'https://soustack.spec/soustack.schema.json',
       profile: 'lite',
       stacks: {
-        'structured@1': 1,
-        'timed@1': 1,
-        'referenced@1': 1,
+        structured: 1,
+        timed: 1,
+        referenced: 1,
       },
       name: 'Test Recipe',
       ingredients: [],
@@ -162,7 +162,7 @@ describe('InstructionsSection data structures', () => {
     const recipe: SoustackLiteRecipe = {
       $schema: 'https://soustack.spec/soustack.schema.json',
       profile: 'lite',
-      stacks: { 'structured@1': 1 },
+      stacks: { structured: 1 },
       name: 'Test Recipe',
       ingredients: [],
       instructions: [
