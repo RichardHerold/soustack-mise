@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
 import { isStackEnabled } from '@/lib/mise/stacks';
 import { InlineStackToggle } from './CapabilitiesPanel';
@@ -73,16 +73,27 @@ export default function InstructionsSection({
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const isInternalUpdateRef = useRef(false);
 
   // Sync items when recipe changes externally
   useEffect(() => {
+    // Skip sync if we're in the middle of an internal update
+    if (isInternalUpdateRef.current) {
+      isInternalUpdateRef.current = false;
+      return;
+    }
     const currentItems = parseInstructions();
-    setItems(currentItems);
+    // Only sync if items actually changed (to avoid clearing focus during typing)
+    const itemsChanged = JSON.stringify(currentItems) !== JSON.stringify(items);
+    if (itemsChanged) {
+      setItems(currentItems);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe.instructions]);
 
   // Update recipe with new instructions
   const updateInstructions = (newItems: InstructionItem[]) => {
+    isInternalUpdateRef.current = true;
     setItems(newItems);
     const next = { ...recipe };
     // Ensure we always have at least one item
@@ -102,9 +113,16 @@ export default function InstructionsSection({
     onChange(next);
   };
 
-  // Add a simple string instruction
+  // Add a simple string instruction at the end
   const handleAddString = () => {
     const newItems = [...items, ''];
+    updateInstructions(newItems);
+  };
+
+  // Add a simple string instruction after a specific index
+  const handleAddStringAfter = (afterIndex: number) => {
+    const newItems = [...items];
+    newItems.splice(afterIndex + 1, 0, '');
     updateInstructions(newItems);
   };
 
@@ -122,9 +140,15 @@ export default function InstructionsSection({
 
   // Update a string instruction
   const handleStringChange = (index: number, value: string) => {
+    // Preserve focus state - if this input is focused, keep it focused after update
+    const wasFocused = focusedIndex === index;
     const newItems = [...items];
     newItems[index] = value || '';
     updateInstructions(newItems);
+    // Restore focus state if it was focused
+    if (wasFocused) {
+      setFocusedIndex(index);
+    }
   };
 
   // Update a structured instruction
@@ -150,7 +174,7 @@ export default function InstructionsSection({
   // Update timing field
   const handleTimingChange = (
     index: number,
-    field: keyof InstructionObject['timing'],
+    field: keyof NonNullable<InstructionObject['timing']>,
     value: unknown
   ) => {
     const newItems = [...items];
@@ -330,9 +354,9 @@ export default function InstructionsSection({
         onDragEnd={handleDragEnd}
         style={{
           display: 'flex',
-          gap: '8px',
-          marginBottom: '8px',
-          alignItems: 'flex-start',
+          gap: '0px',
+          marginBottom: '4px',
+          alignItems: 'center',
           opacity: isDragging ? 0.5 : 1,
           borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
           paddingTop: isDragOver ? '6px' : '0px',
@@ -341,12 +365,39 @@ export default function InstructionsSection({
         onMouseEnter={() => setHoveredIndex(index)}
         onMouseLeave={() => setHoveredIndex(null)}
       >
+        {/* Plus button - Notion style */}
+        <button
+          onClick={() => handleAddStringAfter(index)}
+          style={{
+            width: '24px',
+            height: '24px',
+            padding: 0,
+            margin: 0,
+            marginTop: '2px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: showActions ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+            color: 'var(--color-text-muted)',
+            fontSize: '20px',
+            lineHeight: '1',
+            fontWeight: '300',
+          }}
+          title="Add step"
+        >
+          +
+        </button>
         {/* Drag handle */}
         <div
           style={{
             cursor: 'grab',
-            padding: '8px 4px',
-            color: showActions ? '#666' : 'transparent',
+            padding: '8px 0px 8px 0px',
+            margin: 0,
+            color: showActions ? 'var(--color-text-muted)' : 'transparent',
             display: 'flex',
             alignItems: 'center',
             transition: 'color 0.2s ease',
@@ -360,7 +411,13 @@ export default function InstructionsSection({
             value={item || ''}
             onChange={(e) => handleStringChange(index, e.target.value || '')}
             onFocus={() => setFocusedIndex(index)}
-            onBlur={() => setFocusedIndex(null)}
+            onBlur={(e) => {
+              // Don't clear focus if clicking a button
+              if (e.relatedTarget && (e.relatedTarget as HTMLElement).tagName === 'BUTTON') {
+                return;
+              }
+              setFocusedIndex(null);
+            }}
             placeholder="Step instruction"
             rows={2}
             style={{
@@ -380,8 +437,9 @@ export default function InstructionsSection({
         {showActions && (
           <button
             onClick={() => handleRemove(index)}
+            onMouseDown={(e) => e.preventDefault()}
             style={{
-              padding: '8px 16px',
+              padding: '8px 12px',
               border: '1px solid #d0d0d0',
               borderRadius: '4px',
               backgroundColor: '#fff',
@@ -561,7 +619,7 @@ export default function InstructionsSection({
                   <span style={{ fontSize: '13px', color: '#666' }}>-</span>
                   <input
                     type="number"
-                    value={'maxMinutes' in duration ? duration.maxMinutes || 0 : 0}
+                    value={('maxMinutes' in duration ? duration.maxMinutes || 0 : 0) as number}
                     onChange={(e) => handleDurationValueChange(index, 'maxMinutes', Number(e.target.value))}
                     min="0"
                     step="0.5"
@@ -710,19 +768,6 @@ export default function InstructionsSection({
           Instructions
         </label>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={handleAddString}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            + String
-          </button>
           {hasStructured && (
             <button
               onClick={handleAddStructured}
@@ -752,17 +797,69 @@ export default function InstructionsSection({
             fontSize: '14px',
           }}
         >
-          No instructions yet. Add a string or structured step.
+          <button
+            onClick={handleAddString}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #d0d0d0',
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            + Add first step
+          </button>
         </div>
       ) : (
-        items.map((item, idx) => {
-          if (isString(item)) {
-            return renderStringInstruction(item, idx);
-          } else if (isStructured(item)) {
-            return renderStructuredInstruction(item, idx);
-          }
-          return null;
-        })
+        <>
+          {items.map((item, idx) => {
+            if (isString(item)) {
+              return renderStringInstruction(item, idx);
+            } else if (isStructured(item)) {
+              return renderStructuredInstruction(item, idx);
+            }
+            return null;
+          })}
+          {/* Add button at the end */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '4px',
+              marginTop: '4px',
+              alignItems: 'center',
+            }}
+            onMouseEnter={() => setHoveredIndex(items.length)}
+            onMouseLeave={() => setHoveredIndex(null)}
+          >
+            <button
+              onClick={handleAddString}
+              style={{
+                width: '24px',
+                height: '24px',
+                padding: 0,
+                border: 'none',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: hoveredIndex === items.length ? 1 : 0.3,
+                transition: 'opacity 0.2s ease',
+                color: '#666',
+                fontSize: '20px',
+                lineHeight: '1',
+                fontWeight: '300',
+              }}
+              title="Add step"
+            >
+              +
+            </button>
+            <div style={{ flex: 1, padding: '8px 12px', color: '#999', fontSize: '13px' }}>
+              Add step
+            </div>
+          </div>
+        </>
       )}
       {/* Inline suggestion for storage stack */}
       {!isStackEnabled(recipe.stacks, 'storage') && (

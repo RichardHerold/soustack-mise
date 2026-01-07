@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
 
 // Types for ingredient structures
@@ -76,18 +76,45 @@ export default function IngredientsSection({
   const [items, setItems] = useState<IngredientItem[]>(parseIngredients());
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [hoveredSectionItem, setHoveredSectionItem] = useState<string | null>(null);
   const [focusedSectionItem, setFocusedSectionItem] = useState<string | null>(null);
+  const [autoFocusIndex, setAutoFocusIndex] = useState<number | null>(null);
+  const inputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+  const isInternalUpdateRef = useRef(false);
 
   // Sync items when recipe changes externally
   useEffect(() => {
+    // Skip sync if we're in the middle of an internal update
+    if (isInternalUpdateRef.current) {
+      isInternalUpdateRef.current = false;
+      return;
+    }
     const currentItems = parseIngredients();
-    setItems(currentItems);
+    // Only sync if items actually changed (to avoid clearing focus during typing)
+    const itemsChanged = JSON.stringify(currentItems) !== JSON.stringify(items);
+    if (itemsChanged) {
+      setItems(currentItems);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe.ingredients]);
 
+  // Auto-focus newly added inputs
+  useEffect(() => {
+    if (autoFocusIndex !== null) {
+      const input = inputRefs.current[autoFocusIndex];
+      if (input) {
+        input.focus();
+        setFocusedIndex(autoFocusIndex);
+        setAutoFocusIndex(null);
+      }
+    }
+  }, [autoFocusIndex]);
+
   // Update recipe with new ingredients
   const updateIngredients = (newItems: IngredientItem[]) => {
+    isInternalUpdateRef.current = true;
     setItems(newItems);
     const next = { ...recipe };
     // Ensure we always have at least one item
@@ -111,15 +138,33 @@ export default function IngredientsSection({
     onChange(next);
   };
 
-  // Add a simple string ingredient
+  // Add a simple string ingredient at the end
   const handleAddString = () => {
     const newItems = [...items, ''];
+    const newIndex = newItems.length - 1;
+    updateIngredients(newItems);
+    setAutoFocusIndex(newIndex);
+  };
+
+  // Add a simple string ingredient after a specific index
+  const handleAddStringAfter = (afterIndex: number) => {
+    const newItems = [...items];
+    newItems.splice(afterIndex + 1, 0, '');
+    const newIndex = afterIndex + 1;
+    updateIngredients(newItems);
+    setAutoFocusIndex(newIndex);
+  };
+
+  // Add a structured ingredient object at the end
+  const handleAddStructured = () => {
+    const newItems = [...items, { name: '', quantity: '', unit: '' }];
     updateIngredients(newItems);
   };
 
-  // Add a structured ingredient object
-  const handleAddStructured = () => {
-    const newItems = [...items, { name: '', quantity: '', unit: '' }];
+  // Add a structured ingredient after a specific index
+  const handleAddStructuredAfter = (afterIndex: number) => {
+    const newItems = [...items];
+    newItems.splice(afterIndex + 1, 0, { name: '', quantity: '', unit: '' });
     updateIngredients(newItems);
   };
 
@@ -137,9 +182,15 @@ export default function IngredientsSection({
 
   // Update a string ingredient
   const handleStringChange = (index: number, value: string) => {
+    // Preserve focus state - if this input is focused, keep it focused after update
+    const wasFocused = focusedIndex === index;
     const newItems = [...items];
     newItems[index] = value || '';
     updateIngredients(newItems);
+    // Restore focus state if it was focused
+    if (wasFocused) {
+      setFocusedIndex(index);
+    }
   };
 
   // Update a structured ingredient
@@ -236,6 +287,44 @@ export default function IngredientsSection({
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  // Handle drag over
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  // Handle drag leave
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  // Handle drop
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== dropIndex) {
+      const newItems = [...items];
+      const draggedItem = newItems[draggedIndex];
+      newItems.splice(draggedIndex, 1);
+      newItems.splice(dropIndex, 0, draggedItem);
+      updateIngredients(newItems);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Handle drag end
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   // Check if item is a string
   const isString = (item: IngredientItem): item is IngredientString => {
     return typeof item === 'string';
@@ -259,25 +348,88 @@ export default function IngredientsSection({
   // Render a string ingredient
   const renderStringIngredient = (item: IngredientString, index: number) => {
     const showActions = hoveredIndex === index || focusedIndex === index;
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
 
     return (
       <div
         key={index}
+        draggable
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
         style={{
           display: 'flex',
-          gap: '8px',
-          marginBottom: '8px',
+          gap: '0px',
+          marginBottom: '4px',
           alignItems: 'center',
+          opacity: isDragging ? 0.5 : 1,
+          borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
+          paddingTop: isDragOver ? '6px' : '0px',
+          transition: 'border-color 0.2s ease, padding 0.2s ease',
         }}
         onMouseEnter={() => setHoveredIndex(index)}
         onMouseLeave={() => setHoveredIndex(null)}
       >
-        <input
+        {/* Plus button - Notion style */}
+        <button
+          onClick={() => handleAddStringAfter(index)}
+          style={{
+            width: '24px',
+            height: '24px',
+            padding: 0,
+            margin: 0,
+            marginTop: '2px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: showActions ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+            color: 'var(--color-text-muted)',
+            fontSize: '20px',
+            lineHeight: '1',
+            fontWeight: '300',
+          }}
+          title="Add ingredient"
+        >
+          +
+        </button>
+        {/* Drag handle */}
+        <div
+          style={{
+            cursor: 'grab',
+            padding: '8px 0px 8px 0px',
+            margin: 0,
+            color: showActions ? 'var(--color-text-muted)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <span style={{ fontSize: '18px', userSelect: 'none' }}>⋮⋮</span>
+        </div>
+        <div style={{ flex: 1 }}>
+          <input
+          ref={(el) => {
+            inputRefs.current[index] = el;
+          }}
           type="text"
           value={item || ''}
           onChange={(e) => handleStringChange(index, e.target.value || '')}
           onFocus={() => setFocusedIndex(index)}
-          onBlur={() => setFocusedIndex(null)}
+          onBlur={(e) => {
+            // Don't clear focus if clicking a button
+            if (e.relatedTarget && (e.relatedTarget as HTMLElement).tagName === 'BUTTON') {
+              return;
+            }
+            setFocusedIndex(null);
+          }}
           placeholder="Ingredient (e.g., 2 cups flour)"
           style={{
             flex: 1,
@@ -290,11 +442,13 @@ export default function IngredientsSection({
             transition: 'border-color 0.2s ease',
           }}
         />
+        </div>
         {showActions && (
           <button
             onClick={() => handleRemove(index)}
+            onMouseDown={(e) => e.preventDefault()}
             style={{
-              padding: '8px 16px',
+              padding: '8px 12px',
               border: '1px solid #d0d0d0',
               borderRadius: '4px',
               backgroundColor: '#fff',
@@ -314,27 +468,85 @@ export default function IngredientsSection({
   // Render a structured ingredient
   const renderStructuredIngredient = (item: IngredientObject, index: number) => {
     const showActions = hoveredIndex === index || focusedIndex === index;
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
 
     return (
       <div
         key={index}
+        draggable
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
         style={{
           display: 'flex',
-          gap: '8px',
-          marginBottom: '8px',
+          gap: '0px',
+          marginBottom: '4px',
           alignItems: 'center',
           flexWrap: 'wrap',
+          opacity: isDragging ? 0.5 : 1,
+          borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
+          paddingTop: isDragOver ? '6px' : '0px',
+          transition: 'border-color 0.2s ease, padding 0.2s ease',
         }}
         onMouseEnter={() => setHoveredIndex(index)}
         onMouseLeave={() => setHoveredIndex(null)}
       >
+        {/* Plus button - Notion style */}
+        <button
+          onClick={() => handleAddStructuredAfter(index)}
+          style={{
+            width: '24px',
+            height: '24px',
+            padding: 0,
+            margin: 0,
+            marginTop: '2px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: showActions ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+            color: 'var(--color-text-muted)',
+            fontSize: '20px',
+            lineHeight: '1',
+            fontWeight: '300',
+          }}
+          title="Add ingredient"
+        >
+          +
+        </button>
+        {/* Drag handle */}
+        <div
+          style={{
+            cursor: 'grab',
+            padding: '8px 0px 8px 0px',
+            margin: 0,
+            color: showActions ? 'var(--color-text-muted)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <span style={{ fontSize: '18px', userSelect: 'none' }}>⋮⋮</span>
+        </div>
         {/* Quantity */}
         <input
           type="text"
           value={item.quantity || ''}
           onChange={(e) => handleStructuredChange(index, 'quantity', e.target.value || '')}
           onFocus={() => setFocusedIndex(index)}
-          onBlur={() => setFocusedIndex(null)}
+          onBlur={(e) => {
+            if (e.relatedTarget && (e.relatedTarget as HTMLElement).tagName === 'BUTTON') {
+              return;
+            }
+            setFocusedIndex(null);
+          }}
           placeholder="Qty"
           style={{
             width: '80px',
@@ -353,7 +565,12 @@ export default function IngredientsSection({
           value={item.unit || ''}
           onChange={(e) => handleStructuredChange(index, 'unit', e.target.value || '')}
           onFocus={() => setFocusedIndex(index)}
-          onBlur={() => setFocusedIndex(null)}
+          onBlur={(e) => {
+            if (e.relatedTarget && (e.relatedTarget as HTMLElement).tagName === 'BUTTON') {
+              return;
+            }
+            setFocusedIndex(null);
+          }}
           placeholder="Unit"
           style={{
             width: '100px',
@@ -372,7 +589,12 @@ export default function IngredientsSection({
           value={item.name || ''}
           onChange={(e) => handleStructuredChange(index, 'name', e.target.value || '')}
           onFocus={() => setFocusedIndex(index)}
-          onBlur={() => setFocusedIndex(null)}
+          onBlur={(e) => {
+            if (e.relatedTarget && (e.relatedTarget as HTMLElement).tagName === 'BUTTON') {
+              return;
+            }
+            setFocusedIndex(null);
+          }}
           placeholder="Ingredient name"
           style={{
             flex: 1,
@@ -413,8 +635,9 @@ export default function IngredientsSection({
         {showActions && (
           <button
             onClick={() => handleRemove(index)}
+            onMouseDown={(e) => e.preventDefault()}
             style={{
-              padding: '8px 16px',
+              padding: '8px 12px',
               border: '1px solid #d0d0d0',
               borderRadius: '4px',
               backgroundColor: '#fff',
@@ -436,17 +659,28 @@ export default function IngredientsSection({
     const sectionHovered = hoveredIndex === index;
     const sectionFocused = focusedIndex === index;
     const showSectionActions = sectionHovered || sectionFocused;
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
 
     return (
       <div
         key={index}
+        draggable
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
         style={{
           marginBottom: '16px',
           padding: '16px',
           border: showSectionActions ? '1px solid #e0e0e0' : '1px solid transparent',
           borderRadius: '4px',
           backgroundColor: showSectionActions ? '#fafafa' : 'transparent',
-          transition: 'border-color 0.2s ease, background-color 0.2s ease',
+          opacity: isDragging ? 0.5 : 1,
+          borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
+          paddingTop: isDragOver ? '14px' : '16px',
+          transition: 'border-color 0.2s ease, background-color 0.2s ease, padding 0.2s ease',
         }}
         onMouseEnter={() => setHoveredIndex(index)}
         onMouseLeave={() => setHoveredIndex(null)}
@@ -733,19 +967,6 @@ export default function IngredientsSection({
         </label>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
-            onClick={handleAddString}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            + String
-          </button>
-          <button
             onClick={handleAddStructured}
             style={{
               padding: '6px 12px',
@@ -785,19 +1006,70 @@ export default function IngredientsSection({
             fontSize: '14px',
           }}
         >
-          No ingredients yet. Add a string, structured, or section item.
+          <button
+            onClick={handleAddString}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #d0d0d0',
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            + Add first ingredient
+          </button>
         </div>
       ) : (
-        items.map((item, idx) => {
-          if (isString(item)) {
-            return renderStringIngredient(item, idx);
-          } else if (isStructured(item)) {
-            return renderStructuredIngredient(item, idx);
-          } else if (isSection(item)) {
-            return renderSection(item, idx);
-          }
-          return null;
-        })
+        <>
+          {items.map((item, idx) => {
+            if (isString(item)) {
+              return renderStringIngredient(item, idx);
+            } else if (isStructured(item)) {
+              return renderStructuredIngredient(item, idx);
+            } else if (isSection(item)) {
+              return renderSection(item, idx);
+            }
+            return null;
+          })}
+          {/* Add button at the end */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '4px',
+              marginTop: '4px',
+              alignItems: 'center',
+            }}
+            onMouseEnter={() => setHoveredIndex(items.length)}
+            onMouseLeave={() => setHoveredIndex(null)}
+          >
+            <button
+              onClick={handleAddString}
+              style={{
+                width: '20px',
+                height: '20px',
+                padding: 0,
+                border: 'none',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: hoveredIndex === items.length ? 1 : 0.3,
+                transition: 'opacity 0.2s ease',
+                color: '#666',
+                fontSize: '16px',
+                lineHeight: '1',
+              }}
+              title="Add ingredient"
+            >
+              +
+            </button>
+            <div style={{ flex: 1, padding: '8px 12px', color: '#999', fontSize: '13px' }}>
+              Add ingredient
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
