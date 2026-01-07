@@ -7,7 +7,6 @@ import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import { migrateVersionedStackKeys } from '@/lib/mise/stacks';
 import MiseEnPlaceSection from './MiseEnPlaceSection';
 import IngredientsSection from './IngredientsSection';
-import CapabilitiesPanel from './CapabilitiesPanel';
 import AfterCookingSection from './AfterCookingSection';
 import InstructionsSection from './InstructionsSection';
 import MiseCheckPanel from './MiseCheckPanel';
@@ -235,18 +234,18 @@ export default function StructuredEditor({
         </h2>
       </div>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Sidebar with profile selection - dimmed/hidden in mise mode */}
+        {/* Sidebar with profile selection - hidden in mise mode */}
         {!isMiseMode && (
           <div
             style={{
-              width: '240px',
+              width: '200px',
               borderRight: '1px solid #e0e0e0',
               backgroundColor: '#f9fafb',
               padding: '16px',
               overflow: 'auto',
             }}
           >
-            <div style={{ marginBottom: '24px' }}>
+            <div>
               <label
                 style={{
                   display: 'block',
@@ -291,7 +290,6 @@ export default function StructuredEditor({
                 Profile selection does not auto-modify content
               </div>
             </div>
-            <CapabilitiesPanel recipe={currentRecipe} onChange={onChange} />
           </div>
         )}
         {/* Main editor content */}

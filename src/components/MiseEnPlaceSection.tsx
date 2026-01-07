@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
 import { isStackEnabled } from '@/lib/mise/stacks';
+import { InlineStackToggle } from './CapabilitiesPanel';
 
 type MiseEnPlaceItem = {
   text: string;
@@ -96,9 +97,29 @@ export default function MiseEnPlaceSection({
     onChange(next);
   };
 
-  // Hide section when capability is not enabled
+  // Show placeholder when capability is not enabled
   if (!isEnabled) {
-    return null;
+    return (
+      <div style={{ marginBottom: '32px' }}>
+        <label
+          style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: 500,
+            marginBottom: '12px',
+          }}
+        >
+          Mise en Place
+        </label>
+        <InlineStackToggle
+          recipe={recipe}
+          onChange={onChange}
+          stackKey="prep"
+          label="Add Prep Steps"
+          variant="placeholder"
+        />
+      </div>
+    );
   }
 
   // Full section when enabled

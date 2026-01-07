@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
 import { isStackEnabled } from '@/lib/mise/stacks';
+import { InlineStackToggle } from './CapabilitiesPanel';
 
 // Types for instruction structures
 type InstructionString = string;
@@ -638,6 +639,26 @@ export default function InstructionsSection({
           }
           return null;
         })
+      )}
+      {/* Inline suggestion for storage stack */}
+      {!isStackEnabled(recipe.stacks, 'storage') && (
+        <div
+          style={{
+            marginTop: '16px',
+            paddingTop: '16px',
+            borderTop: '1px dashed #e0e0e0',
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+        >
+          <InlineStackToggle
+            recipe={recipe}
+            onChange={onChange}
+            stackKey="storage"
+            label="Add Storage Info"
+            variant="button"
+          />
+        </div>
       )}
     </div>
   );
