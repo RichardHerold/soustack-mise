@@ -321,17 +321,14 @@ export default function StructuredEditor({
           />
         </div>
 
-        {/* Mise en Place section - shown first in mise mode */}
-        {isMiseMode && <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />}
-
-        {/* Ingredients section - prominent in mise mode */}
+        {/* Ingredients section */}
         <IngredientsSection recipe={currentRecipe} onChange={onChange} />
+
+        {/* Mise en Place section */}
+        <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />
 
         {/* Instructions section */}
         <InstructionsSection recipe={currentRecipe} onChange={onChange} />
-
-        {/* Mise en Place section - shown after instructions in draft mode */}
-        {!isMiseMode && <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />}
 
         {/* After Cooking section */}
         <AfterCookingSection recipe={currentRecipe} onChange={onChange} />
