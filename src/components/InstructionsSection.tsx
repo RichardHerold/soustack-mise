@@ -69,6 +69,10 @@ export default function InstructionsSection({
   };
 
   const [items, setItems] = useState<InstructionItem[]>(parseInstructions());
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Sync items when recipe changes externally
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function InstructionsSection({
   // Update a string instruction
   const handleStringChange = (index: number, value: string) => {
     const newItems = [...items];
-    newItems[index] = value;
+    newItems[index] = value || '';
     updateInstructions(newItems);
   };
 
@@ -133,9 +137,11 @@ export default function InstructionsSection({
     const current = newItems[index];
     if (typeof current === 'object' && current !== null) {
       const currentObj = current as InstructionObject;
+      // Ensure string fields default to empty string
+      const normalizedValue = typeof value === 'string' ? (value || '') : value;
       newItems[index] = {
         ...currentObj,
-        [field]: value,
+        [field]: normalizedValue,
       } as InstructionObject;
       updateInstructions(newItems);
     }
@@ -235,7 +241,7 @@ export default function InstructionsSection({
     if (typeof current === 'object' && current !== null) {
       const currentObj = current as InstructionObject;
       const currentInputs = [...(currentObj.inputs || [])];
-      currentInputs[inputIndex] = value;
+      currentInputs[inputIndex] = value || '';
       newItems[index] = {
         ...currentObj,
         inputs: currentInputs,
@@ -269,88 +275,202 @@ export default function InstructionsSection({
     return typeof item === 'object' && item !== null;
   };
 
+  // Handle drag start
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  // Handle drag over
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  // Handle drag leave
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  // Handle drop
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== dropIndex) {
+      const newItems = [...items];
+      const draggedItem = newItems[draggedIndex];
+      newItems.splice(draggedIndex, 1);
+      newItems.splice(dropIndex, 0, draggedItem);
+      updateInstructions(newItems);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Handle drag end
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   // Render a string instruction
-  const renderStringInstruction = (item: InstructionString, index: number) => (
-    <div
-      key={index}
-      style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '8px',
-        alignItems: 'flex-start',
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <textarea
-          value={item}
-          onChange={(e) => handleStringChange(index, e.target.value)}
-          placeholder="Step instruction"
-          rows={2}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            border: '1px solid #d0d0d0',
-            borderRadius: '4px',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            resize: 'vertical',
-          }}
-        />
-      </div>
-      <button
-        onClick={() => handleRemove(index)}
+  const renderStringInstruction = (item: InstructionString, index: number) => {
+    const showActions = hoveredIndex === index || focusedIndex === index;
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
+
+    return (
+      <div
+        key={index}
+        draggable
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
         style={{
-          padding: '8px 16px',
-          border: '1px solid #d0d0d0',
-          borderRadius: '4px',
-          backgroundColor: '#fff',
-          cursor: 'pointer',
-          fontSize: '13px',
-          alignSelf: 'flex-start',
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '8px',
+          alignItems: 'flex-start',
+          opacity: isDragging ? 0.5 : 1,
+          borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
+          paddingTop: isDragOver ? '6px' : '0px',
+          transition: 'border-color 0.2s ease, padding 0.2s ease',
         }}
+        onMouseEnter={() => setHoveredIndex(index)}
+        onMouseLeave={() => setHoveredIndex(null)}
       >
-        Remove
-      </button>
-    </div>
-  );
+        {/* Drag handle */}
+        <div
+          style={{
+            cursor: 'grab',
+            padding: '8px 4px',
+            color: showActions ? '#666' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <span style={{ fontSize: '18px', userSelect: 'none' }}>⋮⋮</span>
+        </div>
+        <div style={{ flex: 1 }}>
+          <textarea
+            value={item || ''}
+            onChange={(e) => handleStringChange(index, e.target.value || '')}
+            onFocus={() => setFocusedIndex(index)}
+            onBlur={() => setFocusedIndex(null)}
+            placeholder="Step instruction"
+            rows={2}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: showActions ? '1px solid #d0d0d0' : '1px solid transparent',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+              backgroundColor: 'transparent',
+              outline: 'none',
+              transition: 'border-color 0.2s ease',
+            }}
+          />
+        </div>
+        {showActions && (
+          <button
+            onClick={() => handleRemove(index)}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #d0d0d0',
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              cursor: 'pointer',
+              fontSize: '13px',
+              alignSelf: 'flex-start',
+              opacity: showActions ? 1 : 0,
+              transition: 'opacity 0.2s ease',
+            }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // Render a structured instruction
   const renderStructuredInstruction = (item: InstructionObject, index: number) => {
     const durationType = item.timing?.duration && 'minutes' in item.timing.duration ? 'exact' : 'range';
     const duration = item.timing?.duration || (durationType === 'exact' ? { minutes: 0 } : { minMinutes: 0, maxMinutes: 0 });
+    const showActions = hoveredIndex === index || focusedIndex === index;
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
 
     return (
       <div
         key={index}
+        draggable
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
         style={{
           marginBottom: '16px',
           padding: '16px',
-          border: '1px solid #e0e0e0',
+          border: showActions ? '1px solid #e0e0e0' : '1px solid transparent',
           borderRadius: '4px',
-          backgroundColor: '#fafafa',
+          backgroundColor: showActions ? '#fafafa' : 'transparent',
+          opacity: isDragging ? 0.5 : 1,
+          borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
+          paddingTop: isDragOver ? '14px' : '16px',
+          transition: 'border-color 0.2s ease, background-color 0.2s ease, padding 0.2s ease',
         }}
+        onMouseEnter={() => setHoveredIndex(index)}
+        onMouseLeave={() => setHoveredIndex(null)}
       >
-        {/* Text input */}
-        <div style={{ marginBottom: '12px' }}>
-          <textarea
-            value={item.text || ''}
-            onChange={(e) => handleStructuredChange(index, 'text', e.target.value)}
-            placeholder="Step instruction"
-            rows={3}
+        {/* Drag handle and text input */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start' }}>
+          <div
             style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              resize: 'vertical',
+              cursor: 'grab',
+              padding: '8px 4px',
+              color: showActions ? '#666' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'color 0.2s ease',
             }}
-          />
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <span style={{ fontSize: '18px', userSelect: 'none' }}>⋮⋮</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <textarea
+              value={item.text || ''}
+              onChange={(e) => handleStructuredChange(index, 'text', e.target.value || '')}
+              onFocus={() => setFocusedIndex(index)}
+              onBlur={() => setFocusedIndex(null)}
+              placeholder="Step instruction"
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: showActions ? '1px solid #d0d0d0' : '1px solid transparent',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                backgroundColor: 'transparent',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+            />
+          </div>
         </div>
 
         {/* Timing controls (when timed stack enabled) */}
-        {hasTimed && (
+        {hasTimed && showActions && (
           <div
             style={{
               marginBottom: '12px',
@@ -478,7 +598,7 @@ export default function InstructionsSection({
         )}
 
         {/* Referenced inputs (when referenced stack enabled) */}
-        {hasReferenced && (
+        {hasReferenced && showActions && (
           <div
             style={{
               marginBottom: '12px',
@@ -512,8 +632,8 @@ export default function InstructionsSection({
                   <div key={inputIdx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <input
                       type="text"
-                      value={inputId}
-                      onChange={(e) => handleInputChange(index, inputIdx, e.target.value)}
+                      value={inputId || ''}
+                      onChange={(e) => handleInputChange(index, inputIdx, e.target.value || '')}
                       placeholder="Ingredient ID"
                       style={{
                         flex: 1,
@@ -548,21 +668,25 @@ export default function InstructionsSection({
         )}
 
         {/* Remove button */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={() => handleRemove(index)}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            Remove
-          </button>
-        </div>
+        {showActions && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => handleRemove(index)}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                cursor: 'pointer',
+                fontSize: '13px',
+                opacity: showActions ? 1 : 0,
+                transition: 'opacity 0.2s ease',
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        )}
       </div>
     );
   };
