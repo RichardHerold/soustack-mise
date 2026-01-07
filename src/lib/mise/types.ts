@@ -1,12 +1,20 @@
 /**
  * Valid Soustack profile types
  */
-export type SoustackProfile = 'lite';
+export type SoustackProfile = 'lite' | 'base' | 'scalable' | 'timed' | 'equipped' | 'prepped' | 'illustrated';
 
 /**
  * Valid Soustack profiles list
  */
-export const VALID_SOUSTACK_PROFILES: SoustackProfile[] = ['lite'];
+export const VALID_SOUSTACK_PROFILES: SoustackProfile[] = [
+  'lite',
+  'base',
+  'scalable',
+  'timed',
+  'equipped',
+  'prepped',
+  'illustrated',
+];
 
 /**
  * Soustack Recipe type
