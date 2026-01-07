@@ -749,6 +749,7 @@ export default function Workbench({
             <StructuredEditor
               recipe={doc.recipe}
               onChange={handleRecipeChange}
+              miseMode={miseMode}
             />
           )}
         </div>

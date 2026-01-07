@@ -5,6 +5,8 @@ import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import MiseEnPlaceSection from './MiseEnPlaceSection';
 import IngredientsSection from './IngredientsSection';
+import AfterCookingSection from './AfterCookingSection';
+import InstructionsSection from './InstructionsSection';
 
 type StructuredEditorProps = {
   recipe: SoustackLiteRecipe;
@@ -14,17 +16,14 @@ type StructuredEditorProps = {
 export default function StructuredEditor({
   recipe,
   onChange,
+  miseMode = 'draft',
 }: StructuredEditorProps) {
   const ingredients = Array.isArray(recipe.ingredients)
     ? (recipe.ingredients as string[])
     : [];
-  const instructions = Array.isArray(recipe.instructions)
-    ? (recipe.instructions as string[])
-    : [];
 
   // Ensure we always have at least one item in each array
   const safeIngredients = ingredients.length > 0 ? ingredients : [''];
-  const safeInstructions = instructions.length > 0 ? instructions : [''];
 
   const handleNameChange = (name: string) => {
     const next = {
@@ -146,95 +145,6 @@ export default function StructuredEditor({
     onChange(next);
   };
 
-  const handleInstructionChange = (index: number, value: string) => {
-    const newInstructions = [...safeInstructions];
-    newInstructions[index] = value;
-
-    // Ensure we always have at least one item
-    const filtered = newInstructions.filter((item) => item.trim().length > 0);
-    const finalInstructions = filtered.length > 0 ? filtered : [''];
-
-    const next = compileLiteRecipe({
-      name: recipe.name,
-      ingredients: safeIngredients as string[],
-      instructions: finalInstructions,
-      meta: recipe['x-mise']?.parse
-        ? {
-            confidence: recipe['x-mise'].parse.confidence,
-            mode: recipe['x-mise'].parse.mode,
-          }
-        : undefined,
-    });
-
-    // Preserve stacks
-    next.stacks = { ...recipe.stacks };
-
-    if (recipe['x-mise']?.prose) {
-      next['x-mise'] = {
-        ...next['x-mise'],
-        prose: recipe['x-mise'].prose,
-      };
-    }
-
-    onChange(next);
-  };
-
-  const handleAddInstruction = () => {
-    const newInstructions = [...safeInstructions, ''];
-    const next = compileLiteRecipe({
-      name: recipe.name,
-      ingredients: safeIngredients as string[],
-      instructions: newInstructions,
-      meta: recipe['x-mise']?.parse
-        ? {
-            confidence: recipe['x-mise'].parse.confidence,
-            mode: recipe['x-mise'].parse.mode,
-          }
-        : undefined,
-    });
-
-    // Preserve stacks
-    next.stacks = { ...recipe.stacks };
-
-    if (recipe['x-mise']?.prose) {
-      next['x-mise'] = {
-        ...next['x-mise'],
-        prose: recipe['x-mise'].prose,
-      };
-    }
-
-    onChange(next);
-  };
-
-  const handleRemoveInstruction = (index: number) => {
-    const newInstructions = safeInstructions.filter((_, i) => i !== index);
-    // Ensure we always have at least one item
-    const finalInstructions = newInstructions.length > 0 ? newInstructions : [''];
-
-    const next = compileLiteRecipe({
-      name: recipe.name,
-      ingredients: safeIngredients as string[],
-      instructions: finalInstructions,
-      meta: recipe['x-mise']?.parse
-        ? {
-            confidence: recipe['x-mise'].parse.confidence,
-            mode: recipe['x-mise'].parse.mode,
-          }
-        : undefined,
-    });
-
-    // Preserve stacks
-    next.stacks = { ...recipe.stacks };
-
-    if (recipe['x-mise']?.prose) {
-      next['x-mise'] = {
-        ...next['x-mise'],
-        prose: recipe['x-mise'].prose,
-      };
-    }
-
-    onChange(next);
-  };
 
   const handleProfileChange = (profile: SoustackProfile) => {
     // Changing profile does NOT auto-add or remove stacks
@@ -314,6 +224,8 @@ export default function StructuredEditor({
         </div>
         {/* Main editor content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+        {/* Mise Check Panel - only visible in Mise mode */}
+        {miseMode === 'mise' && <MiseCheckPanel recipe={recipe} />}
         <div style={{ marginBottom: '32px' }}>
           <label
             style={{
@@ -470,6 +382,9 @@ export default function StructuredEditor({
 
         {/* Mise en Place section */}
         <MiseEnPlaceSection recipe={recipe} onChange={onChange} />
+
+        {/* After Cooking section */}
+        <AfterCookingSection recipe={recipe} onChange={onChange} />
         </div>
       </div>
     </div>
