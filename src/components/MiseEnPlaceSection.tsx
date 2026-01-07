@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
 import { isStackEnabled } from '@/lib/mise/stacks';
 import { InlineStackToggle } from './CapabilitiesPanel';
@@ -45,11 +45,35 @@ export default function MiseEnPlaceSection({
 
   const [items, setItems] = useState<MiseEnPlaceItem[]>(getMiseEnPlaceItems());
   const [isExpanded, setIsExpanded] = useState(isEnabled);
+  // Track if we're making the change ourselves to avoid useEffect sync race
+  const isInternalUpdateRef = useRef(false);
 
   // Sync items when recipe changes externally
+  // Merge empty items from local state with non-empty items from recipe
+  // This preserves empty items being edited while syncing saved items
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:54',message:'useEffect triggered',data:{isInternalUpdate:isInternalUpdateRef.current,currentItemsCount:items.length,recipeMiseEnPlace:(recipe as SoustackLiteRecipe & { miseEnPlace?: Array<{ text: string }> }).miseEnPlace,isEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    // Skip sync if we're the ones making the change (prevents race condition)
+    if (isInternalUpdateRef.current) {
+      // #region agent log
+      fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:60',message:'useEffect sync skipped (internal update)',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      isInternalUpdateRef.current = false;
+      return;
+    }
     const currentItems = getMiseEnPlaceItems();
-    setItems(currentItems);
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:66',message:'useEffect syncing',data:{currentItemsCount:currentItems.length,currentItems,localItemsCount:items.length,localItems:items},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    // Merge: keep empty items from local state, add/update non-empty items from recipe
+    const emptyLocalItems = items.filter(item => !item.text.trim());
+    const mergedItems = [...currentItems, ...emptyLocalItems];
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:72',message:'useEffect setting merged items',data:{mergedItemsCount:mergedItems.length,mergedItems,emptyLocalItemsCount:emptyLocalItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    setItems(mergedItems);
     setIsExpanded(isEnabled);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe.stacks, (recipe as SoustackLiteRecipe & { miseEnPlace?: Array<{ text: string }> }).miseEnPlace]);
@@ -61,7 +85,13 @@ export default function MiseEnPlaceSection({
   };
 
   const handleAddItem = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:75',message:'handleAddItem called',data:{currentItemsCount:items.length,currentItems:items,isEnabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const newItems = [...items, { text: '' }];
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:78',message:'Before updateItems',data:{newItemsCount:newItems.length,newItems},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     updateItems(newItems);
   };
 
@@ -85,16 +115,34 @@ export default function MiseEnPlaceSection({
   };
 
   const updateItems = (newItems: MiseEnPlaceItem[]) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:99',message:'updateItems entry',data:{newItemsCount:newItems.length,newItems,currentItemsCount:items.length,isInternalUpdateBefore:isInternalUpdateRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    // Mark that we're making an internal update (prevents useEffect from syncing back)
+    isInternalUpdateRef.current = true;
+    // Always update local state first (allows empty items for editing)
     setItems(newItems);
     const next = { ...recipe };
-    // Filter out empty items
+    // Filter out empty items only when saving to recipe
     const filteredItems = newItems.filter((item) => item.text.trim().length > 0);
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:110',message:'After filtering',data:{filteredItemsCount:filteredItems.length,filteredItems,originalCount:newItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Store in top-level miseEnPlace field, not in stacks
     const nextWithMiseEnPlace = next as SoustackLiteRecipe & {
       miseEnPlace?: Array<{ text: string }>;
     };
+    // Only update recipe if there are non-empty items, but preserve local state with empty items
     nextWithMiseEnPlace.miseEnPlace = filteredItems.length > 0 ? filteredItems : undefined;
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:117',message:'Before onChange',data:{miseEnPlace:nextWithMiseEnPlace.miseEnPlace,hasMiseEnPlace:!!nextWithMiseEnPlace.miseEnPlace,localItemsCount:newItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    // Always call onChange to update recipe (even with empty items, so parent knows about the change)
+    // The ref flag prevents useEffect from overwriting our local state
     onChange(next);
+    // #region agent log
+    fetch('http://127.0.0.1:7258/ingest/ddcb45e8-a288-43de-9ebe-d7d3c0bb0a3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MiseEnPlaceSection.tsx:122',message:'After onChange',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
   };
 
   // Show placeholder when capability is not enabled
