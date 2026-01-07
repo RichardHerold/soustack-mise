@@ -225,75 +225,79 @@ export default function StructuredEditor({
     onChange(next);
   };
 
+  const isMiseMode = miseMode === 'mise';
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>
-          Structured Editor
+          {isMiseMode ? 'Mise en Place' : 'Structured Editor'}
         </h2>
       </div>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Sidebar with profile selection */}
-        <div
-          style={{
-            width: '240px',
-            borderRight: '1px solid #e0e0e0',
-            backgroundColor: '#f9fafb',
-            padding: '16px',
-            overflow: 'auto',
-          }}
-        >
-          <div style={{ marginBottom: '24px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#666',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-              }}
-            >
-              Soustack Profile
-            </label>
-            <select
-              value={currentRecipe.profile}
-              onChange={(e) => handleProfileChange(e.target.value as SoustackProfile)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '4px',
-                fontSize: '14px',
-                backgroundColor: '#fff',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              {VALID_SOUSTACK_PROFILES.map((profile) => (
-                <option key={profile} value={profile}>
-                  {profile}
-                </option>
-              ))}
-            </select>
-            <div
-              style={{
-                marginTop: '8px',
-                fontSize: '12px',
-                color: '#999',
-                fontStyle: 'italic',
-              }}
-            >
-              Profile selection does not auto-modify content
+        {/* Sidebar with profile selection - dimmed/hidden in mise mode */}
+        {!isMiseMode && (
+          <div
+            style={{
+              width: '240px',
+              borderRight: '1px solid #e0e0e0',
+              backgroundColor: '#f9fafb',
+              padding: '16px',
+              overflow: 'auto',
+            }}
+          >
+            <div style={{ marginBottom: '24px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#666',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                Soustack Profile
+              </label>
+              <select
+                value={currentRecipe.profile}
+                onChange={(e) => handleProfileChange(e.target.value as SoustackProfile)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {VALID_SOUSTACK_PROFILES.map((profile) => (
+                  <option key={profile} value={profile}>
+                    {profile}
+                  </option>
+                ))}
+              </select>
+              <div
+                style={{
+                  marginTop: '8px',
+                  fontSize: '12px',
+                  color: '#999',
+                  fontStyle: 'italic',
+                }}
+              >
+                Profile selection does not auto-modify content
+              </div>
             </div>
+            <CapabilitiesPanel recipe={currentRecipe} onChange={onChange} />
           </div>
-          <CapabilitiesPanel recipe={currentRecipe} onChange={onChange} />
-        </div>
+        )}
         {/* Main editor content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        {/* Mise Check Panel - only visible in Mise mode */}
-        {miseMode === 'mise' && <MiseCheckPanel recipe={currentRecipe} />}
+        {/* Mise Check Panel - only visible in Mise mode, shown as progress bar */}
+        {isMiseMode && <MiseCheckPanel recipe={currentRecipe} />}
         <div style={{ marginBottom: '32px' }}>
           <label
             style={{
@@ -319,14 +323,17 @@ export default function StructuredEditor({
           />
         </div>
 
-        {/* Ingredients section */}
+        {/* Mise en Place section - shown first in mise mode */}
+        {isMiseMode && <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />}
+
+        {/* Ingredients section - prominent in mise mode */}
         <IngredientsSection recipe={currentRecipe} onChange={onChange} />
 
         {/* Instructions section */}
         <InstructionsSection recipe={currentRecipe} onChange={onChange} />
 
-        {/* Mise en Place section */}
-        <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />
+        {/* Mise en Place section - shown after instructions in draft mode */}
+        {!isMiseMode && <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />}
 
         {/* After Cooking section */}
         <AfterCookingSection recipe={currentRecipe} onChange={onChange} />

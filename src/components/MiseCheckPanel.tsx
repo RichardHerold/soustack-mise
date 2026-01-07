@@ -198,77 +198,169 @@ export function computeMiseChecks(recipe: SoustackLiteRecipe): CheckItem[] {
  * MiseCheckPanel - Advisory validation checklist
  * Only visible when miseMode === "mise"
  * Shows guidance items based on profile, stacks, and field presence
+ * In mise mode, displays as a "Preparation Progress" bar at the top
  */
 export default function MiseCheckPanel({ recipe }: MiseCheckPanelProps) {
   const checks = computeMiseChecks(recipe);
+  
+  // Calculate progress based on preparation readiness
+  const warnings = checks.filter(c => c.severity === 'warning');
+  const hasWarnings = warnings.length > 0;
+  
+  // Check if prep items exist
+  const recipeWithMiseEnPlace = recipe as SoustackLiteRecipe & {
+    miseEnPlace?: Array<{ text: string }>;
+  };
+  const hasPrepItems = recipeWithMiseEnPlace.miseEnPlace && 
+    Array.isArray(recipeWithMiseEnPlace.miseEnPlace) && 
+    recipeWithMiseEnPlace.miseEnPlace.length > 0 &&
+    recipeWithMiseEnPlace.miseEnPlace.some(item => item.text && item.text.trim().length > 0);
+  
+  // Check if ingredients exist
+  const hasIngredients = Array.isArray(recipe.ingredients) && 
+    recipe.ingredients.length > 0 && 
+    recipe.ingredients.some(ing => {
+      if (typeof ing === 'string') return ing.trim() !== '' && ing !== '(not provided)';
+      return true;
+    });
+  
+  // Progress calculation: weighted components
+  // - Prep items: 40% (most important for mise en place)
+  // - Ingredients: 30% (essential)
+  // - No warnings: 30% (quality check)
+  let progress = 0;
+  if (hasPrepItems) progress += 40;
+  if (hasIngredients) progress += 30;
+  if (!hasWarnings) progress += 30;
+  
+  // Cap at 100%
+  progress = Math.min(100, progress);
 
-  if (checks.length === 0) {
-    return (
+  // Render as progress bar in mise mode
+  const progressColor = progress === 100 
+    ? '#10b981' // green
+    : progress >= 70 
+    ? '#3b82f6' // blue
+    : progress >= 40
+    ? '#f59e0b' // amber
+    : '#ef4444'; // red
+
+  return (
+    <div
+      style={{
+        marginBottom: '24px',
+        padding: '16px',
+        backgroundColor: '#fff',
+        border: '1px solid #e0e0e0',
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      }}
+    >
+      {/* Progress bar header */}
       <div
         style={{
-          padding: '16px',
-          border: '1px solid #d1fae5',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '12px',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#333',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}
+        >
+          Preparation Progress
+        </div>
+        <div
+          style={{
+            fontSize: '18px',
+            fontWeight: 600,
+            color: progressColor,
+          }}
+        >
+          {progress}%
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div
+        style={{
+          width: '100%',
+          height: '8px',
+          backgroundColor: '#e5e7eb',
           borderRadius: '4px',
-          backgroundColor: '#f0fdf4',
-          marginBottom: '24px',
+          overflow: 'hidden',
+          marginBottom: '12px',
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            height: '100%',
+            backgroundColor: progressColor,
+            transition: 'width 0.3s ease, background-color 0.3s ease',
+          }}
+        />
+      </div>
+
+      {/* Status indicators */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '16px',
+          flexWrap: 'wrap',
+          fontSize: '12px',
         }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            marginBottom: '8px',
+            gap: '6px',
+            color: hasPrepItems ? '#10b981' : '#6b7280',
           }}
         >
-          <span style={{ fontSize: '16px' }}>✓</span>
-          <span
-            style={{
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#065f46',
-            }}
-          >
-            All checks passed
-          </span>
+          <span>{hasPrepItems ? '✓' : '○'}</span>
+          <span>Mise en Place</span>
         </div>
         <div
           style={{
-            fontSize: '12px',
-            color: '#047857',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            color: hasIngredients ? '#10b981' : '#6b7280',
           }}
         >
-          Your recipe structure looks good!
+          <span>{hasIngredients ? '✓' : '○'}</span>
+          <span>Ingredients</span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            color: !hasWarnings ? '#10b981' : '#f59e0b',
+          }}
+        >
+          <span>{!hasWarnings ? '✓' : '⚠'}</span>
+          <span>{!hasWarnings ? 'Ready' : `${warnings.length} issue${warnings.length > 1 ? 's' : ''}`}</span>
         </div>
       </div>
-    );
-  }
 
-  const warnings = checks.filter((c) => c.severity === 'warning');
-  const infos = checks.filter((c) => c.severity === 'info');
-
-  return (
-    <div
-      style={{
-        padding: '16px',
-        border: '1px solid #e0e0e0',
-        borderRadius: '4px',
-        backgroundColor: '#fafafa',
-        marginBottom: '24px',
-      }}
-    >
-      <div
-        style={{
-          fontSize: '14px',
-          fontWeight: 500,
-          marginBottom: '12px',
-          color: '#333',
-        }}
-      >
-        Advisory Checklist
-      </div>
-      {warnings.length > 0 && (
-        <div style={{ marginBottom: infos.length > 0 ? '16px' : '0' }}>
+      {/* Warnings (collapsible) */}
+      {hasWarnings && (
+        <div
+          style={{
+            marginTop: '12px',
+            paddingTop: '12px',
+            borderTop: '1px solid #e5e7eb',
+          }}
+        >
           {warnings.map((check) => (
             <div
               key={check.id}
@@ -276,53 +368,16 @@ export default function MiseCheckPanel({ recipe }: MiseCheckPanelProps) {
                 display: 'flex',
                 gap: '8px',
                 padding: '8px 12px',
-                marginBottom: '8px',
+                marginBottom: '6px',
                 backgroundColor: '#fef3c7',
                 border: '1px solid #f59e0b',
                 borderRadius: '4px',
-                alignItems: 'flex-start',
+                fontSize: '12px',
+                color: '#92400e',
               }}
             >
-              <span style={{ fontSize: '14px', color: '#92400e', flexShrink: 0 }}>⚠</span>
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: '#92400e',
-                  lineHeight: '1.5',
-                }}
-              >
-                {check.message}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {infos.length > 0 && (
-        <div>
-          {infos.map((check) => (
-            <div
-              key={check.id}
-              style={{
-                display: 'flex',
-                gap: '8px',
-                padding: '8px 12px',
-                marginBottom: '8px',
-                backgroundColor: '#eff6ff',
-                border: '1px solid #3b82f6',
-                borderRadius: '4px',
-                alignItems: 'flex-start',
-              }}
-            >
-              <span style={{ fontSize: '14px', color: '#1e40af', flexShrink: 0 }}>ℹ</span>
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: '#1e40af',
-                  lineHeight: '1.5',
-                }}
-              >
-                {check.message}
-              </span>
+              <span>⚠</span>
+              <span>{check.message}</span>
             </div>
           ))}
         </div>

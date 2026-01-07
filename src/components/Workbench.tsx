@@ -739,7 +739,7 @@ export default function Workbench({
         </div>
       )}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
+        <div style={{ flex: miseMode === 'mise' ? 1 : 1, borderRight: miseMode === 'mise' ? 'none' : '1px solid #e0e0e0' }}>
           {doc.draft.mode === 'raw' ? (
             <RawDraftEditor
               value={doc.draft.rawText}
@@ -753,9 +753,11 @@ export default function Workbench({
             />
           )}
         </div>
-        <div style={{ flex: 1 }}>
-          <PreviewTabs recipe={doc.recipe} parse={parseMetadata} />
-        </div>
+        {miseMode === 'draft' && (
+          <div style={{ flex: 1 }}>
+            <PreviewTabs recipe={doc.recipe} parse={parseMetadata} />
+          </div>
+        )}
       </div>
       {showConvertDialog && (
         <ConvertDialog
