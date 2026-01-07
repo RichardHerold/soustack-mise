@@ -3,6 +3,7 @@
 import type { SoustackLiteRecipe, SoustackProfile } from '@/lib/mise/types';
 import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
+import MiseEnPlaceSection from './MiseEnPlaceSection';
 
 type StructuredEditorProps = {
   recipe: SoustackLiteRecipe;
@@ -460,7 +461,7 @@ export default function StructuredEditor({
           ))}
         </div>
 
-        <div>
+        <div style={{ marginBottom: '32px' }}>
           <div
             style={{
               display: 'flex',
@@ -533,6 +534,9 @@ export default function StructuredEditor({
             </div>
           ))}
         </div>
+
+        {/* Mise en Place section */}
+        <MiseEnPlaceSection recipe={recipe} onChange={onChange} />
         </div>
       </div>
     </div>

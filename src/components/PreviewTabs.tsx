@@ -90,6 +90,25 @@ function PreviewTab({ recipe }: { recipe: SoustackLiteRecipe }) {
     ? recipe.instructions
     : [];
 
+  // Get mise en place items if prep@1 stack is enabled
+  const miseEnPlaceItems: Array<{ text: string }> = [];
+  if ('prep@1' in recipe.stacks && recipe.stacks['prep@1'] !== undefined) {
+    const prepData = recipe.stacks['prep@1'];
+    if (Array.isArray(prepData)) {
+      prepData.forEach((item) => {
+        if (
+          typeof item === 'object' &&
+          item !== null &&
+          'text' in item &&
+          typeof item.text === 'string' &&
+          item.text.trim().length > 0
+        ) {
+          miseEnPlaceItems.push({ text: item.text });
+        }
+      });
+    }
+  }
+
   return (
     <div>
       <h2
@@ -101,6 +120,51 @@ function PreviewTab({ recipe }: { recipe: SoustackLiteRecipe }) {
       >
         {recipe.name}
       </h2>
+
+      {miseEnPlaceItems.length > 0 && (
+        <section style={{ marginBottom: '32px' }}>
+          <h3
+            style={{
+              margin: '0 0 12px 0',
+              fontSize: '18px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              color: '#666',
+            }}
+          >
+            Mise en Place
+          </h3>
+          <ul style={{ margin: 0, paddingLeft: '24px', listStyle: 'none' }}>
+            {miseEnPlaceItems.map((item, idx) => (
+              <li
+                key={idx}
+                style={{
+                  marginBottom: '8px',
+                  fontSize: '16px',
+                  lineHeight: '1.6',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '18px',
+                    height: '18px',
+                    border: '2px solid #666',
+                    borderRadius: '3px',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                />
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section style={{ marginBottom: '32px' }}>
         <h3
