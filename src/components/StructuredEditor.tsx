@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { SoustackLiteRecipe, SoustackProfile } from '@/lib/mise/types';
-import { VALID_SOUSTACK_PROFILES } from '@/lib/mise/types';
+import type { SoustackLiteRecipe } from '@/lib/mise/types';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import { migrateVersionedStackKeys } from '@/lib/mise/stacks';
 import MiseEnPlaceSection from './MiseEnPlaceSection';
@@ -10,6 +9,7 @@ import IngredientsSection from './IngredientsSection';
 import AfterCookingSection from './AfterCookingSection';
 import InstructionsSection from './InstructionsSection';
 import MiseCheckPanel from './MiseCheckPanel';
+import MiseGuidanceRail from './MiseGuidanceRail';
 
 type StructuredEditorProps = {
   recipe: SoustackLiteRecipe;
@@ -212,18 +212,6 @@ export default function StructuredEditor({
   };
 
 
-  const handleProfileChange = (profile: SoustackProfile) => {
-    // Changing profile does NOT auto-add or remove stacks
-    // Profile selection is explicit author intent
-    const next: SoustackLiteRecipe = {
-      ...currentRecipe,
-      profile,
-      // Preserve existing stacks - do not mutate
-      stacks: currentRecipe.stacks || {},
-    };
-    onChange(next);
-  };
-
   const isMiseMode = miseMode === 'mise';
 
   return (
@@ -234,105 +222,52 @@ export default function StructuredEditor({
         </h2>
       </div>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Sidebar with profile selection - hidden in mise mode */}
-        {!isMiseMode && (
-          <div
-            style={{
-              width: '200px',
-              borderRight: '1px solid #e0e0e0',
-              backgroundColor: '#f9fafb',
-              padding: '16px',
-              overflow: 'auto',
-            }}
-          >
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#666',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                Soustack Profile
-              </label>
-              <select
-                value={currentRecipe.profile}
-                onChange={(e) => handleProfileChange(e.target.value as SoustackProfile)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d0d0d0',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  backgroundColor: '#fff',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {VALID_SOUSTACK_PROFILES.map((profile) => (
-                  <option key={profile} value={profile}>
-                    {profile}
-                  </option>
-                ))}
-              </select>
-              <div
-                style={{
-                  marginTop: '8px',
-                  fontSize: '12px',
-                  color: '#999',
-                  fontStyle: 'italic',
-                }}
-              >
-                Profile selection does not auto-modify content
-              </div>
-            </div>
-          </div>
-        )}
         {/* Main editor content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        {/* Mise Check Panel - only visible in Mise mode, shown as progress bar */}
-        {isMiseMode && <MiseCheckPanel recipe={currentRecipe} />}
-        <div style={{ marginBottom: '32px' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-            }}
-          >
-            Recipe Name
-          </label>
-          <input
-            type="text"
-            value={currentRecipe.name}
-            onChange={(e) => handleNameChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              fontSize: '16px',
-            }}
-          />
+          {/* Mise Check Panel - only visible in Mise mode, shown as progress bar */}
+          {isMiseMode && <MiseCheckPanel recipe={currentRecipe} />}
+          <div style={{ marginBottom: '32px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              Recipe Name
+            </label>
+            <input
+              type="text"
+              value={currentRecipe.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                fontSize: '16px',
+              }}
+            />
+          </div>
+
+          {/* Ingredients section */}
+          <IngredientsSection recipe={currentRecipe} onChange={onChange} />
+
+          {/* Mise en Place section */}
+          <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />
+
+          {/* Instructions section */}
+          <InstructionsSection recipe={currentRecipe} onChange={onChange} />
+
+          {/* After Cooking section */}
+          <AfterCookingSection recipe={currentRecipe} onChange={onChange} />
         </div>
 
-        {/* Ingredients section */}
-        <IngredientsSection recipe={currentRecipe} onChange={onChange} />
-
-        {/* Mise en Place section */}
-        <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />
-
-        {/* Instructions section */}
-        <InstructionsSection recipe={currentRecipe} onChange={onChange} />
-
-        {/* After Cooking section */}
-        <AfterCookingSection recipe={currentRecipe} onChange={onChange} />
-        </div>
+        {/* Mise Guidance Rail - only visible in Mise mode */}
+        {isMiseMode && (
+          <MiseGuidanceRail recipe={currentRecipe} onChange={onChange} />
+        )}
       </div>
     </div>
   );
