@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react';
 import type { CreatorMode } from './CreatorMode';
 import EntryCards from './EntryCards';
+import PasteRecipeEditor from './PasteRecipeEditor';
+import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
+import type { SoustackLiteRecipe } from '@/lib/mise/types';
 
 export default function CreatorPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mode, setMode] = useState<CreatorMode>('empty');
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
-  const [recipeName, setRecipeName] = useState('');
-  const [description, setDescription] = useState('');
+  const [draftText, setDraftText] = useState('');
+  const [recipe, setRecipe] = useState<SoustackLiteRecipe>(() => compileLiteRecipe({}));
+  const [parseMeta, setParseMeta] = useState<{ confidence: number; mode: string } | null>(null);
 
   // Detect mobile
   useEffect(() => {
@@ -78,8 +82,10 @@ export default function CreatorPage() {
           <div style={{ marginBottom: '16px' }}>
             <input
               type="text"
-              value={recipeName}
-              onChange={(e) => setRecipeName(e.target.value)}
+              value={recipe.name || ''}
+              onChange={(e) => {
+                setRecipe({ ...recipe, name: e.target.value || 'Untitled Recipe' });
+              }}
               placeholder="Recipe Name"
               style={{
                 width: '100%',
@@ -93,8 +99,10 @@ export default function CreatorPage() {
           </div>
           <div>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={recipe.description || ''}
+              onChange={(e) => {
+                setRecipe({ ...recipe, description: e.target.value || undefined });
+              }}
               placeholder="Description (optional)"
               rows={2}
               style={{
@@ -177,15 +185,35 @@ export default function CreatorPage() {
           {/* Mobile Content */}
           <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
             {activeTab === 'editor' && (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                {mode === 'paste' && 'Paste mode editor goes here'}
-                {mode === 'scratch' && 'Scratch mode editor goes here'}
-                {mode === 'import' && 'Import mode editor goes here'}
+              <div>
+                {mode === 'paste' && (
+                  <PasteRecipeEditor
+                    draftText={draftText}
+                    onDraftTextChange={setDraftText}
+                    onRecipeChange={setRecipe}
+                    onParseMetaChange={setParseMeta}
+                  />
+                )}
+                {mode === 'scratch' && (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
+                    Scratch mode editor goes here
+                  </div>
+                )}
+                {mode === 'import' && (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
+                    Import mode editor goes here
+                  </div>
+                )}
               </div>
             )}
             {activeTab === 'preview' && (
               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
                 Preview goes here
+                {recipe.name && (
+                  <div style={{ marginTop: '16px', fontSize: '14px' }}>
+                    Recipe: {recipe.name}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -253,11 +281,24 @@ export default function CreatorPage() {
               borderRight: '1px solid #e0e0e0',
             }}
           >
-            <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-              {mode === 'paste' && 'Paste mode editor goes here'}
-              {mode === 'scratch' && 'Scratch mode editor goes here'}
-              {mode === 'import' && 'Import mode editor goes here'}
-            </div>
+            {mode === 'paste' && (
+              <PasteRecipeEditor
+                draftText={draftText}
+                onDraftTextChange={setDraftText}
+                onRecipeChange={setRecipe}
+                onParseMetaChange={setParseMeta}
+              />
+            )}
+            {mode === 'scratch' && (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
+                Scratch mode editor goes here
+              </div>
+            )}
+            {mode === 'import' && (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
+                Import mode editor goes here
+              </div>
+            )}
           </div>
 
           {/* Preview Pane (40%) */}
@@ -272,6 +313,11 @@ export default function CreatorPage() {
           >
             <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
               Preview goes here
+              {recipe.name && (
+                <div style={{ marginTop: '16px', fontSize: '14px' }}>
+                  Recipe: {recipe.name}
+                </div>
+              )}
             </div>
           </div>
         </div>
