@@ -5,6 +5,7 @@ import type { CreatorMode } from './CreatorMode';
 import EntryCards from './EntryCards';
 import PasteRecipeEditor from './PasteRecipeEditor';
 import BuildRecipeEditor from './BuildRecipeEditor';
+import CreatorPreview from './CreatorPreview';
 import InputMethodToggle from './InputMethodToggle';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import { parseFreeform } from '@/lib/mise/parseFreeform';
@@ -262,16 +263,7 @@ export default function CreatorPage() {
                 )}
               </div>
             )}
-            {activeTab === 'preview' && (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                Preview goes here
-                {recipe.name && (
-                  <div style={{ marginTop: '16px', fontSize: '14px' }}>
-                    Recipe: {recipe.name}
-                  </div>
-                )}
-              </div>
-            )}
+            {activeTab === 'preview' && <CreatorPreview recipe={recipe} />}
           </div>
 
           {/* Mobile Footer with Save + Export */}
@@ -374,18 +366,11 @@ export default function CreatorPage() {
               flex: '0 0 40%',
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'auto',
+              overflow: 'hidden',
               backgroundColor: '#fafafa',
             }}
           >
-            <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-              Preview goes here
-              {recipe.name && (
-                <div style={{ marginTop: '16px', fontSize: '14px' }}>
-                  Recipe: {recipe.name}
-                </div>
-              )}
-            </div>
+            <CreatorPreview recipe={recipe} />
           </div>
         </div>
       )}
