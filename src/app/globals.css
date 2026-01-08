@@ -18,6 +18,22 @@
   --color-error: #dc2626;
   --color-info: #0284c7;
 
+  /* Capability accent colors (IDE-style, non-semantic) */
+  --cap-prep: #e4b652;
+  --cap-timed: #3b82f6;
+  --cap-scaling: #8b5cf6;
+  --cap-referenced: #14b8a6;
+  --cap-equipment: #64748b;
+  --cap-storage: #6366f1;
+
+  /* Very subtle background tints (5–8% opacity equivalents) */
+  --cap-prep-bg: rgba(228, 182, 82, 0.06);
+  --cap-timed-bg: rgba(59, 130, 246, 0.06);
+  --cap-scaling-bg: rgba(139, 92, 246, 0.06);
+  --cap-referenced-bg: rgba(20, 184, 166, 0.06);
+  --cap-equipment-bg: rgba(100, 116, 139, 0.06);
+  --cap-storage-bg: rgba(99, 102, 241, 0.06);
+
   /* Spacing scale */
   --space-xs: 0.25rem;   /* 4px */
   --space-sm: 0.5rem;    /* 8px */
