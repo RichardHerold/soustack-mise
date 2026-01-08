@@ -9,20 +9,47 @@ we optimize for trust, clarity, and progressive structure—not schema purity.
 
 **Capture is free. Structure is earned. The recipe is always valid.**
 
-Users should never feel like they are “adopting a standard.”
+Users should never feel like they are "adopting a standard."
 Soustack is emitted as a *side-effect* of finishing a recipe.
 
 ---
 
-## Locked decisions (do not “just tweak”)
+## Two entry points
+
+Soustack Mise provides **two** paths to create recipes:
+
+| | Creator (`/create`) | Workbench (`/`, `/recipes/[id]`) |
+|---|---|---|
+| **Purpose** | Quick conversion of existing recipes | Full-featured editing & management |
+| **State model** | `SoustackLiteRecipe` directly | `WorkbenchDoc` wrapper |
+| **Conversion** | AI-powered (Gemini) | Rule-based parser |
+| **Modes** | None | Draft / Mise |
+| **Stacks** | Auto-inferred from content | User-toggled |
+| **Persistence** | Stateless (export only) | Database via Supabase |
+| **Guidance** | None | Optional advisory rail |
+
+### When to use which
+
+| Use case | Entry point |
+|----------|-------------|
+| "I have recipe text, give me JSON" | Creator |
+| "I want to quickly structure a recipe" | Creator |
+| "I want to save and edit recipes over time" | Workbench |
+| "I want to publish a recipe publicly" | Workbench |
+| "I need mise en place / storage sections" | Workbench |
+| "I'm building a recipe from memory" | Either |
+
+Both paths produce valid `SoustackLiteRecipe` output.
+
+---
+
+## Locked decisions (do not "just tweak")
 
 ### 1. Source of truth (immutable)
 
-* Canonical state is a **Soustack recipe object** stored at:
-
-  ```
-  WorkbenchDoc.recipe
-  ```
+* Canonical state is a **Soustack recipe object**:
+  * Workbench: stored at `WorkbenchDoc.recipe`
+  * Creator: the `SoustackLiteRecipe` itself
 
 * This object must be **always valid** at all times.
 
@@ -36,10 +63,13 @@ There is no silent inference.
 
 ### 2. One-way conversion (explicit)
 
-* Raw Draft → Structured is **explicit** (button / user action).
+* Raw text → Structured is **explicit** (button / user action).
 * No silent merging.
 * No background reconciliation.
 * No round-tripping from structured → raw.
+
+In Creator: the "Convert" button triggers AI conversion.
+In Workbench: the "Convert to Structured" button triggers rule-based parsing.
 
 If the user wants to keep prose, they must opt in.
 
@@ -65,6 +95,8 @@ If prose exists, it is archival—not authoritative.
 
 ## Core invariants (must never be violated)
 
+These apply to **both** Creator and Workbench:
+
 ### Always-valid invariant
 
 At **any moment**, the system must be able to emit a valid Soustack `lite` recipe.
@@ -79,8 +111,8 @@ At **any moment**, the system must be able to emit a valid Soustack `lite` recip
 
 ### No dual sources of truth
 
-* `WorkbenchDoc.recipe` is canonical
-* `draft.rawText` is a snapshot only
+* In Workbench: `WorkbenchDoc.recipe` is canonical, `draft.rawText` is snapshot only
+* In Creator: the `SoustackLiteRecipe` state is the only source
 * Structured editor mutates canonical recipe directly
 
 If two representations disagree, the recipe wins.
@@ -121,9 +153,10 @@ If two representations disagree, the recipe wins.
 
 They:
 
-* unlock UI sections
+* unlock UI sections (Workbench)
 * enable affordances
 * define what *could* be supported
+* signal to consumers what features are present
 
 They **do not**:
 
@@ -136,7 +169,28 @@ All structure remains **user-authored**.
 
 ---
 
-## Guidance model (replaces “Draft vs Mise” as a mental model)
+### Stack inference (Creator only)
+
+In Creator, stacks are **inferred** from content rather than toggled:
+
+```typescript
+// Pseudo-code
+if (anyIngredientHas('toTaste') || anyIngredientHas('scaling')) {
+  stacks.scaling = 1;
+}
+if (anyInstructionHas('timing')) {
+  stacks.timed = 1;
+}
+```
+
+This is acceptable because:
+1. It's based on actual content, not guessing
+2. The user can edit the result before export
+3. Creator is stateless—no silent mutations to saved data
+
+---
+
+## Guidance model (Workbench only)
 
 ### Key principle
 
@@ -147,7 +201,7 @@ Capabilities may be enabled at any time.
 
 Guidance answers:
 
-> “If I care about this capability, what does it require?”
+> "If I care about this capability, what does it require?"
 
 ---
 
@@ -175,7 +229,7 @@ Inline hints must be:
 * Shows:
 
   * preparation progress (high-level)
-  * what’s missing *relative to enabled capabilities*
+  * what's missing *relative to enabled capabilities*
 * No blocking
 * No auto-fixes
 * No errors
@@ -237,6 +291,44 @@ All non-normative data must live in one of:
 
 Never add app-specific fields at top level without an `x-` prefix.
 
+**Creator-specific extensions:**
+
+```json
+"x-mise": {
+  "source": {
+    "text": "original pasted text...",
+    "convertedAt": "2025-01-08T...",
+    "converter": "gemini-2.0-flash"
+  }
+}
+```
+
+---
+
+## Code organization
+
+```
+/create                    → Creator (simple flow)
+  - No WorkbenchDoc
+  - Direct SoustackLiteRecipe editing
+  - AI conversion via /api/convert
+
+/                          → Workbench (full editor)
+/recipes/[id]              → Workbench with loaded recipe
+  - WorkbenchDoc state model
+  - Full section components
+  - Database integration
+```
+
+Components are intentionally separate:
+
+```
+/components/creator/*      → Creator-specific components
+/components/*              → Workbench components
+```
+
+Do not merge these. They serve different purposes and audiences.
+
 ---
 
 ## Code review guardrails (for humans and agents)
@@ -245,10 +337,11 @@ Reject changes that:
 
 * Introduce versioned stack keys in editor state
 * Store payload data inside `recipe.stacks`
-* Add silent auto-conversions
-* Block editing based on “missing” requirements
+* Add silent auto-conversions (explicit button is fine)
+* Block editing based on "missing" requirements
 * Add a second source of truth
 * Turn guidance into enforcement
+* Merge Creator and Workbench components without clear reason
 
 Prefer changes that:
 
@@ -256,6 +349,8 @@ Prefer changes that:
 * Make structure opt-in
 * Fail softly
 * Are boring and predictable
+* Keep Creator simple and stateless
+* Keep Workbench full-featured for power users
 
 ---
 
@@ -273,6 +368,9 @@ Soustack Mise **is**:
 * a progressive capability authoring tool
 * a trust-preserving editor
 
-If you’re unsure which path to take:
+**Creator** is the fast on-ramp: paste → convert → export.
+**Workbench** is the full workshop: create → edit → save → publish.
+
+If you're unsure which path to take:
 
 **Choose the one that lets the user keep cooking.**
