@@ -21,7 +21,14 @@ type InstructionObject = {
   [key: string]: unknown; // Allow other fields
 };
 
-type InstructionItem = InstructionString | InstructionObject;
+type InstructionSection = {
+  section: {
+    name: string;
+    items: InstructionItem[];
+  };
+};
+
+type InstructionItem = InstructionString | InstructionObject | InstructionSection;
 
 type InstructionsSectionProps = {
   recipe: SoustackLiteRecipe;
@@ -45,27 +52,76 @@ export default function InstructionsSection({
   const hasTimed = isStackEnabled(recipe.stacks, 'timed');
   const hasReferenced = isStackEnabled(recipe.stacks, 'referenced');
 
+  // Normalize a single instruction item to canonical editor shape
+  const normalizeItem = (item: unknown): InstructionItem => {
+    // String: return as-is
+    if (typeof item === 'string') {
+      return item;
+    }
+    
+    // Object: check for section
+    if (typeof item === 'object' && item !== null) {
+      // Canonical editor shape: { section: { name, items } }
+      if ('section' in item && typeof item.section === 'object' && item.section !== null) {
+        const sectionData = item.section as { name?: unknown; items?: unknown };
+        const normalizedSection: InstructionSection = {
+          section: {
+            name: typeof sectionData.name === 'string' ? sectionData.name : '',
+            items: Array.isArray(sectionData.items)
+              ? sectionData.items.map(normalizeItem)
+              : [],
+          },
+        };
+        return normalizedSection;
+      }
+      
+      // Spec-style shape: { section: string, steps: [...] }
+      if ('section' in item && typeof item.section === 'string' && 'steps' in item && Array.isArray(item.steps)) {
+        const specItem = item as { section: string; steps: unknown[] };
+        const normalizedSection: InstructionSection = {
+          section: {
+            name: specItem.section,
+            items: specItem.steps.map(normalizeItem),
+          },
+        };
+        return normalizedSection;
+      }
+      
+      // Structured object (with text field)
+      if ('text' in item) {
+        return item as InstructionObject;
+      }
+      
+      // Unknown object shape: try to preserve it as structured object
+      // If it has a stringifiable value, use that as text
+      const obj = item as Record<string, unknown>;
+      if ('text' in obj) {
+        return obj as InstructionObject;
+      }
+      // Fallback: stringify the object
+      return String(item);
+    }
+    
+    // Fallback: convert to string
+    return String(item);
+  };
+
   // Parse instructions array into structured items
   const parseInstructions = (): InstructionItem[] => {
     if (!Array.isArray(recipe.instructions)) return [];
     return recipe.instructions
       .filter((item) => {
         // Filter out placeholder text
-        const str = typeof item === 'string' ? item : typeof item === 'object' && item !== null && 'text' in item ? String(item.text) : String(item);
+        const str = typeof item === 'string' 
+          ? item 
+          : typeof item === 'object' && item !== null && 'text' in item 
+            ? String(item.text) 
+            : typeof item === 'object' && item !== null && 'section' in item
+              ? String((item as { section?: unknown }).section || '')
+              : String(item);
         return str !== '(not provided)' && str.trim() !== '';
       })
-      .map((item): InstructionItem => {
-        // Type guard: if it's a string, return as-is
-        if (typeof item === 'string') {
-          return item;
-        }
-        // If it's an object, treat as structured object
-        if (typeof item === 'object' && item !== null) {
-          return item as InstructionObject;
-        }
-        // Fallback: convert to string
-        return String(item);
-      });
+      .map(normalizeItem);
   };
 
   const [items, setItems] = useState<InstructionItem[]>(parseInstructions());
@@ -73,6 +129,8 @@ export default function InstructionsSection({
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [hoveredSectionItem, setHoveredSectionItem] = useState<string | null>(null);
+  const [focusedSectionItem, setFocusedSectionItem] = useState<string | null>(null);
   const isInternalUpdateRef = useRef(false);
 
   // Sync items when recipe changes externally
@@ -102,6 +160,12 @@ export default function InstructionsSection({
         return item.trim().length > 0;
       }
       if (typeof item === 'object' && item !== null) {
+        // Section: keep if name or items exist
+        if ('section' in item) {
+          const sectionItem = item as InstructionSection;
+          return sectionItem.section.name.trim().length > 0 || sectionItem.section.items.length > 0;
+        }
+        // Structured object: keep if text exists
         if ('text' in item) {
           const objItem = item as InstructionObject;
           return objItem.text.trim().length > 0;
@@ -109,7 +173,22 @@ export default function InstructionsSection({
       }
       return false;
     });
-    next.instructions = filtered.length > 0 ? filtered : ['(not provided)'];
+    // Write back using canonical editor shape
+    const normalized = filtered.map((item) => {
+      if (typeof item === 'string') {
+        return item;
+      }
+      if (typeof item === 'object' && item !== null) {
+        if ('section' in item) {
+          // Already in canonical shape: { section: { name, items } }
+          return item;
+        }
+        // Structured object: preserve as-is
+        return item;
+      }
+      return String(item);
+    });
+    next.instructions = normalized.length > 0 ? normalized : ['(not provided)'];
     onChange(next);
   };
 
@@ -132,10 +211,311 @@ export default function InstructionsSection({
     updateInstructions(newItems);
   };
 
+  // Add a section
+  const handleAddSection = () => {
+    const newItems = [...items, { section: { name: '', items: [''] } }];
+    updateInstructions(newItems);
+  };
+
   // Remove an item
   const handleRemove = (index: number) => {
     const newItems = items.filter((_, i) => i !== index);
     updateInstructions(newItems);
+  };
+
+  // Update a section name
+  const handleSectionNameChange = (index: number, name: string) => {
+    const newItems = [...items];
+    const current = newItems[index];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      newItems[index] = {
+        section: {
+          ...currentSection.section,
+          name: name || '',
+        },
+      } as InstructionSection;
+      updateInstructions(newItems);
+    }
+  };
+
+  // Add item to a section
+  const handleAddToSection = (sectionIndex: number, asString: boolean) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const newSectionItem: InstructionItem = asString ? '' : { text: '', id: `step-${Date.now()}` };
+      newItems[sectionIndex] = {
+        section: {
+          ...currentSection.section,
+          items: [...currentSection.section.items, newSectionItem],
+        },
+      } as InstructionSection;
+      updateInstructions(newItems);
+    }
+  };
+
+  // Update item in a section
+  const handleSectionItemChange = (
+    sectionIndex: number,
+    itemIndex: number,
+    value: InstructionItem
+  ) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      // Ensure string values default to empty string
+      const normalizedValue = typeof value === 'string' ? (value || '') : value;
+      sectionItems[itemIndex] = normalizedValue;
+      newItems[sectionIndex] = {
+        section: {
+          ...currentSection.section,
+          items: sectionItems,
+        },
+      } as InstructionSection;
+      updateInstructions(newItems);
+    }
+  };
+
+  // Remove item from a section
+  const handleRemoveFromSection = (sectionIndex: number, itemIndex: number) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = currentSection.section.items.filter((_: InstructionItem, i: number) => i !== itemIndex);
+      newItems[sectionIndex] = {
+        section: {
+          ...currentSection.section,
+          items: sectionItems,
+        },
+      } as InstructionSection;
+      updateInstructions(newItems);
+    }
+  };
+
+  // Update structured instruction in a section
+  const handleSectionStructuredChange = (
+    sectionIndex: number,
+    itemIndex: number,
+    field: keyof InstructionObject,
+    value: unknown
+  ) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const normalizedValue = typeof value === 'string' ? (value || '') : value;
+        sectionItems[itemIndex] = {
+          ...currentObj,
+          [field]: normalizedValue,
+        } as InstructionObject;
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
+  };
+
+  // Update timing field in a section item
+  const handleSectionTimingChange = (
+    sectionIndex: number,
+    itemIndex: number,
+    field: keyof NonNullable<InstructionObject['timing']>,
+    value: unknown
+  ) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const currentTiming = currentObj.timing || {};
+        sectionItems[itemIndex] = {
+          ...currentObj,
+          timing: {
+            ...currentTiming,
+            [field]: value,
+          },
+        } as InstructionObject;
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
+  };
+
+  // Update duration type in a section item
+  const handleSectionDurationTypeChange = (sectionIndex: number, itemIndex: number, type: 'exact' | 'range') => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const currentTiming = currentObj.timing || {};
+        if (type === 'exact') {
+          sectionItems[itemIndex] = {
+            ...currentObj,
+            timing: {
+              ...currentTiming,
+              duration: { minutes: 0 },
+            },
+          } as InstructionObject;
+        } else {
+          sectionItems[itemIndex] = {
+            ...currentObj,
+            timing: {
+              ...currentTiming,
+              duration: { minMinutes: 0, maxMinutes: 0 },
+            },
+          } as InstructionObject;
+        }
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
+  };
+
+  // Update duration value in a section item
+  const handleSectionDurationValueChange = (
+    sectionIndex: number,
+    itemIndex: number,
+    field: 'minutes' | 'minMinutes' | 'maxMinutes',
+    value: number
+  ) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const currentTiming = currentObj.timing || {};
+        const currentDuration = currentTiming.duration || {};
+        sectionItems[itemIndex] = {
+          ...currentObj,
+          timing: {
+            ...currentTiming,
+            duration: {
+              ...currentDuration,
+              [field]: value,
+            },
+          },
+        } as InstructionObject;
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
+  };
+
+  // Add input reference in a section item
+  const handleSectionAddInput = (sectionIndex: number, itemIndex: number) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const currentInputs = currentObj.inputs || [];
+        sectionItems[itemIndex] = {
+          ...currentObj,
+          inputs: [...currentInputs, ''],
+        } as InstructionObject;
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
+  };
+
+  // Update input reference in a section item
+  const handleSectionInputChange = (sectionIndex: number, itemIndex: number, inputIndex: number, value: string) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const currentInputs = [...(currentObj.inputs || [])];
+        currentInputs[inputIndex] = value || '';
+        sectionItems[itemIndex] = {
+          ...currentObj,
+          inputs: currentInputs,
+        } as InstructionObject;
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
+  };
+
+  // Remove input reference in a section item
+  const handleSectionRemoveInput = (sectionIndex: number, itemIndex: number, inputIndex: number) => {
+    const newItems = [...items];
+    const current = newItems[sectionIndex];
+    if (typeof current === 'object' && current !== null && 'section' in current) {
+      const currentSection = current as InstructionSection;
+      const sectionItems = [...currentSection.section.items];
+      const currentItem = sectionItems[itemIndex];
+      if (typeof currentItem === 'object' && currentItem !== null && !('section' in currentItem)) {
+        const currentObj = currentItem as InstructionObject;
+        const currentInputs = (currentObj.inputs || []).filter((_, i) => i !== inputIndex);
+        sectionItems[itemIndex] = {
+          ...currentObj,
+          inputs: currentInputs,
+        } as InstructionObject;
+        newItems[sectionIndex] = {
+          section: {
+            ...currentSection.section,
+            items: sectionItems,
+          },
+        } as InstructionSection;
+        updateInstructions(newItems);
+      }
+    }
   };
 
   // Update a string instruction
@@ -296,7 +676,12 @@ export default function InstructionsSection({
 
   // Check if item is a structured object
   const isStructured = (item: InstructionItem): item is InstructionObject => {
-    return typeof item === 'object' && item !== null;
+    return typeof item === 'object' && item !== null && !('section' in item);
+  };
+
+  // Check if item is a section
+  const isSection = (item: InstructionItem): item is InstructionSection => {
+    return typeof item === 'object' && item !== null && 'section' in item;
   };
 
   // Handle drag start
@@ -749,6 +1134,433 @@ export default function InstructionsSection({
     );
   };
 
+  // Render a section
+  const renderSection = (item: InstructionSection, index: number) => {
+    const sectionHovered = hoveredIndex === index;
+    const sectionFocused = focusedIndex === index;
+    const showSectionActions = sectionHovered || sectionFocused;
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
+
+    return (
+      <div
+        key={index}
+        draggable
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
+        style={{
+          marginBottom: '16px',
+          padding: '16px',
+          border: showSectionActions ? '1px solid #e0e0e0' : '1px solid transparent',
+          borderRadius: '4px',
+          backgroundColor: showSectionActions ? '#fafafa' : 'transparent',
+          opacity: isDragging ? 0.5 : 1,
+          borderTop: isDragOver ? '2px solid #007bff' : '2px solid transparent',
+          paddingTop: isDragOver ? '14px' : '16px',
+          transition: 'border-color 0.2s ease, background-color 0.2s ease, padding 0.2s ease',
+        }}
+        onMouseEnter={() => setHoveredIndex(index)}
+        onMouseLeave={() => setHoveredIndex(null)}
+      >
+        {/* Section header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+          }}
+        >
+          <input
+            type="text"
+            value={item.section.name || ''}
+            onChange={(e) => handleSectionNameChange(index, e.target.value || '')}
+            onFocus={() => setFocusedIndex(index)}
+            onBlur={() => setFocusedIndex(null)}
+            placeholder="Section name (e.g., For the sauce)"
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: showSectionActions ? '1px solid #d0d0d0' : '1px solid transparent',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontWeight: 500,
+              backgroundColor: 'transparent',
+              outline: 'none',
+              transition: 'border-color 0.2s ease',
+            }}
+          />
+          {showSectionActions && (
+            <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+              <button
+                onClick={() => handleAddToSection(index, true)}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                }}
+              >
+                + Step
+              </button>
+              {hasStructured && (
+                <button
+                  onClick={() => handleAddToSection(index, false)}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #d0d0d0',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  + Structured
+                </button>
+              )}
+              <button
+                onClick={() => handleRemove(index)}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Section items */}
+        <div style={{ paddingLeft: '16px' }}>
+          {item.section.items.length === 0 ? (
+            <div
+              style={{
+                padding: '12px',
+                color: '#999',
+                fontSize: '13px',
+                fontStyle: 'italic',
+                textAlign: 'center',
+              }}
+            >
+              No steps in this section yet
+            </div>
+          ) : (
+            item.section.items.map((sectionItem, itemIdx) => {
+              const itemKey = `${index}-${itemIdx}`;
+              const itemHovered = hoveredSectionItem === itemKey;
+              const itemFocused = focusedSectionItem === itemKey;
+              const showItemActions = itemHovered || itemFocused;
+
+              return (
+                <div
+                  key={itemIdx}
+                  style={{ marginBottom: '8px' }}
+                  onMouseEnter={() => setHoveredSectionItem(itemKey)}
+                  onMouseLeave={() => setHoveredSectionItem(null)}
+                >
+                  {isString(sectionItem) ? (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                      <textarea
+                        value={sectionItem || ''}
+                        onChange={(e) =>
+                          handleSectionItemChange(index, itemIdx, e.target.value || '')
+                        }
+                        onFocus={() => setFocusedSectionItem(itemKey)}
+                        onBlur={() => setFocusedSectionItem(null)}
+                        placeholder="Step instruction"
+                        rows={2}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          border: showItemActions ? '1px solid #d0d0d0' : '1px solid transparent',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          resize: 'vertical',
+                          backgroundColor: 'transparent',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease',
+                        }}
+                      />
+                      {showItemActions && (
+                        <button
+                          onClick={() => handleRemoveFromSection(index, itemIdx)}
+                          style={{
+                            padding: '8px 16px',
+                            border: '1px solid #d0d0d0',
+                            borderRadius: '4px',
+                            backgroundColor: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            alignSelf: 'flex-start',
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ) : isStructured(sectionItem) ? (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start' }}>
+                        <textarea
+                          value={sectionItem.text || ''}
+                          onChange={(e) => handleSectionStructuredChange(index, itemIdx, 'text', e.target.value || '')}
+                          onFocus={() => setFocusedSectionItem(itemKey)}
+                          onBlur={() => setFocusedSectionItem(null)}
+                          placeholder="Step instruction"
+                          rows={3}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            border: showItemActions ? '1px solid #d0d0d0' : '1px solid transparent',
+                            borderRadius: '4px',
+                            fontSize: '14px',
+                            fontFamily: 'inherit',
+                            resize: 'vertical',
+                            backgroundColor: 'transparent',
+                            outline: 'none',
+                            transition: 'border-color 0.2s ease',
+                          }}
+                        />
+                        {showItemActions && (
+                          <button
+                            onClick={() => handleRemoveFromSection(index, itemIdx)}
+                            style={{
+                              padding: '8px 16px',
+                              border: '1px solid #d0d0d0',
+                              borderRadius: '4px',
+                              backgroundColor: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              alignSelf: 'flex-start',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Timing controls (when timed stack enabled) */}
+                      {hasTimed && showItemActions && (
+                        <div
+                          style={{
+                            marginBottom: '12px',
+                            padding: '12px',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '4px',
+                            backgroundColor: '#fff',
+                          }}
+                        >
+                          <div style={{ marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#666' }}>
+                            Timing (optional)
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <select
+                              value={sectionItem.timing?.activity || ''}
+                              onChange={(e) => handleSectionTimingChange(index, itemIdx, 'activity', e.target.value || undefined)}
+                              style={{
+                                padding: '6px 10px',
+                                border: '1px solid #d0d0d0',
+                                borderRadius: '4px',
+                                fontSize: '13px',
+                                backgroundColor: '#fff',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <option value="">Activity type</option>
+                              <option value="active">Active</option>
+                              <option value="passive">Passive</option>
+                            </select>
+
+                            {(() => {
+                              const durationType = sectionItem.timing?.duration && 'minutes' in (sectionItem.timing.duration || {}) ? 'exact' : 'range';
+                              const duration = sectionItem.timing?.duration || (durationType === 'exact' ? { minutes: 0 } : { minMinutes: 0, maxMinutes: 0 });
+                              return (
+                                <>
+                                  <select
+                                    value={durationType}
+                                    onChange={(e) => handleSectionDurationTypeChange(index, itemIdx, e.target.value as 'exact' | 'range')}
+                                    style={{
+                                      padding: '6px 10px',
+                                      border: '1px solid #d0d0d0',
+                                      borderRadius: '4px',
+                                      fontSize: '13px',
+                                      backgroundColor: '#fff',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    <option value="exact">Exact duration</option>
+                                    <option value="range">Duration range</option>
+                                  </select>
+
+                                  {durationType === 'exact' && 'minutes' in duration && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <input
+                                        type="number"
+                                        value={duration.minutes || 0}
+                                        onChange={(e) => handleSectionDurationValueChange(index, itemIdx, 'minutes', Number(e.target.value))}
+                                        min="0"
+                                        step="0.5"
+                                        placeholder="Minutes"
+                                        style={{
+                                          width: '80px',
+                                          padding: '6px 10px',
+                                          border: '1px solid #d0d0d0',
+                                          borderRadius: '4px',
+                                          fontSize: '13px',
+                                        }}
+                                      />
+                                      <span style={{ fontSize: '13px', color: '#666' }}>min</span>
+                                    </div>
+                                  )}
+
+                                  {durationType === 'range' && ('minMinutes' in duration || 'maxMinutes' in duration) && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <input
+                                        type="number"
+                                        value={'minMinutes' in duration ? duration.minMinutes || 0 : 0}
+                                        onChange={(e) => handleSectionDurationValueChange(index, itemIdx, 'minMinutes', Number(e.target.value))}
+                                        min="0"
+                                        step="0.5"
+                                        placeholder="Min"
+                                        style={{
+                                          width: '70px',
+                                          padding: '6px 10px',
+                                          border: '1px solid #d0d0d0',
+                                          borderRadius: '4px',
+                                          fontSize: '13px',
+                                        }}
+                                      />
+                                      <span style={{ fontSize: '13px', color: '#666' }}>-</span>
+                                      <input
+                                        type="number"
+                                        value={('maxMinutes' in duration ? duration.maxMinutes || 0 : 0) as number}
+                                        onChange={(e) => handleSectionDurationValueChange(index, itemIdx, 'maxMinutes', Number(e.target.value))}
+                                        min="0"
+                                        step="0.5"
+                                        placeholder="Max"
+                                        style={{
+                                          width: '70px',
+                                          padding: '6px 10px',
+                                          border: '1px solid #d0d0d0',
+                                          borderRadius: '4px',
+                                          fontSize: '13px',
+                                        }}
+                                      />
+                                      <span style={{ fontSize: '13px', color: '#666' }}>min</span>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+
+                            <input
+                              type="text"
+                              value={sectionItem.timing?.completionCue || ''}
+                              onChange={(e) => handleSectionTimingChange(index, itemIdx, 'completionCue', e.target.value || undefined)}
+                              placeholder="Completion cue (optional)"
+                              style={{
+                                flex: 1,
+                                minWidth: '150px',
+                                padding: '6px 10px',
+                                border: '1px solid #d0d0d0',
+                                borderRadius: '4px',
+                                fontSize: '13px',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Referenced inputs (when referenced stack enabled) */}
+                      {hasReferenced && showItemActions && (
+                        <div
+                          style={{
+                            marginBottom: '12px',
+                            padding: '12px',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '4px',
+                            backgroundColor: '#fff',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 500, color: '#666' }}>
+                              Inputs (optional)
+                            </div>
+                            <button
+                              onClick={() => handleSectionAddInput(index, itemIdx)}
+                              style={{
+                                padding: '4px 8px',
+                                border: '1px solid #d0d0d0',
+                                borderRadius: '4px',
+                                backgroundColor: '#fff',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                              }}
+                            >
+                              + Add input
+                            </button>
+                          </div>
+                          {sectionItem.inputs && sectionItem.inputs.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {sectionItem.inputs.map((inputId, inputIdx) => (
+                                <div key={inputIdx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  <input
+                                    type="text"
+                                    value={inputId || ''}
+                                    onChange={(e) => handleSectionInputChange(index, itemIdx, inputIdx, e.target.value || '')}
+                                    placeholder="Ingredient ID"
+                                    style={{
+                                      flex: 1,
+                                      padding: '6px 10px',
+                                      border: '1px solid #d0d0d0',
+                                      borderRadius: '4px',
+                                      fontSize: '13px',
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => handleSectionRemoveInput(index, itemIdx, inputIdx)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      border: '1px solid #d0d0d0',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#fff',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
+                              No inputs referenced
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ marginBottom: '32px' }}>
       <div
@@ -789,6 +1601,19 @@ export default function InstructionsSection({
               + Structured
             </button>
           )}
+          <button
+            onClick={handleAddSection}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #d0d0d0',
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            + Section
+          </button>
         </div>
       </div>
       {items.length === 0 ? (
@@ -824,6 +1649,8 @@ export default function InstructionsSection({
               return renderStringInstruction(item, idx);
             } else if (isStructured(item)) {
               return renderStructuredInstruction(item, idx);
+            } else if (isSection(item)) {
+              return renderSection(item, idx);
             }
             return null;
           })}
