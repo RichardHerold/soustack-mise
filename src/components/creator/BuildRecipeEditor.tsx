@@ -10,7 +10,7 @@ type BuildRecipeEditorProps = {
 
 /**
  * BuildRecipeEditor - Simplified editor for Creator flow
- * - Uses StructuredEditor in draft mode (no Mise mode toggle)
+ * - Uses StructuredEditor without mode toggles
  * - No global warning/checklist panels (MiseCheckPanel, MiseGuidanceRail hidden)
  * - No CapabilitiesPanel (stacks are auto-detected from content)
  * - Inline guidance only (calm, contextual hints)

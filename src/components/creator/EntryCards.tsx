@@ -69,7 +69,7 @@ export default function EntryCards({ onSelect }: EntryCardsProps) {
           Start from scratch
         </div>
         <div style={{ fontSize: '14px', color: '#666' }}>
-          Build your recipe step by step with our guided editor.
+          Build your recipe step by step, organizing ingredients and instructions as you go.
         </div>
       </button>
 

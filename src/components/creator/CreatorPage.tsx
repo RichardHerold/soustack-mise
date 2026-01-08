@@ -300,7 +300,12 @@ export default function CreatorPage() {
           alignItems: 'center',
         }}
       >
-        <div style={{ fontSize: '18px', fontWeight: 600 }}>🥣 Soustack Creator</div>
+        <div>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>🥣 Soustack Mise</div>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '2px', fontWeight: 400 }}>
+            From rough notes to a ready recipe — without breaking your flow.
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button
             onClick={handleSave}
@@ -435,11 +440,22 @@ export default function CreatorPage() {
           style={{
             flex: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '24px',
+            padding: '48px 24px',
           }}
         >
+          <div
+            style={{
+              fontSize: '24px',
+              fontWeight: 600,
+              marginBottom: '32px',
+              textAlign: 'center',
+            }}
+          >
+            How would you like to start?
+          </div>
           <EntryCards
             onSelect={(selectedMode) => {
               setMode(selectedMode);
@@ -525,7 +541,7 @@ export default function CreatorPage() {
                 )}
                 {mode === 'import' && (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                    Import mode editor goes here
+                    File import coming soon
                   </div>
                 )}
               </div>
@@ -621,7 +637,7 @@ export default function CreatorPage() {
             )}
             {mode === 'import' && (
               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                Import mode editor goes here
+                File import coming soon
               </div>
             )}
           </div>
