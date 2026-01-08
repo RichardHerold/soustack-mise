@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+import { isStackEnabled } from '@/lib/mise/stacks';
 
 // Types for ingredient structures
 type IngredientString = string;
@@ -44,7 +45,7 @@ export default function IngredientsSection({
   onChange,
 }: IngredientsSectionProps) {
   // Check for scaling capability declaration (not scaling@1 content)
-  const hasScaling = 'scaling' in recipe.stacks && recipe.stacks['scaling'] !== undefined;
+  const hasScaling = isStackEnabled(recipe.stacks, 'scaling');
 
   // Parse ingredients array into structured items
   const parseIngredients = (): IngredientItem[] => {
@@ -955,6 +956,12 @@ export default function IngredientsSection({
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '12px',
+          paddingLeft: hasScaling ? '12px' : '0',
+          borderLeft: hasScaling ? '3px solid var(--cap-scaling)' : 'none',
+          backgroundColor: hasScaling ? 'var(--cap-scaling-bg)' : 'transparent',
+          paddingTop: hasScaling ? '8px' : '0',
+          paddingBottom: hasScaling ? '8px' : '0',
+          borderRadius: hasScaling ? '4px' : '0',
         }}
       >
         <label

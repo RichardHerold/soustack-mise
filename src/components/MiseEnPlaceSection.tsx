@@ -192,6 +192,12 @@ export default function MiseEnPlaceSection({
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '12px',
+          paddingLeft: isEnabled ? '12px' : '0',
+          borderLeft: isEnabled ? '3px solid var(--cap-prep)' : 'none',
+          backgroundColor: isEnabled ? 'var(--cap-prep-bg)' : 'transparent',
+          paddingTop: isEnabled ? '8px' : '0',
+          paddingBottom: isEnabled ? '8px' : '0',
+          borderRadius: isEnabled ? '4px' : '0',
         }}
       >
         <label

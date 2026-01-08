@@ -757,6 +757,12 @@ export default function InstructionsSection({
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '12px',
+          paddingLeft: hasTimed ? '12px' : '0',
+          borderLeft: hasTimed ? '3px solid var(--cap-timed)' : 'none',
+          backgroundColor: hasTimed ? 'var(--cap-timed-bg)' : 'transparent',
+          paddingTop: hasTimed ? '8px' : '0',
+          paddingBottom: hasTimed ? '8px' : '0',
+          borderRadius: hasTimed ? '4px' : '0',
         }}
       >
         <label
