@@ -38,6 +38,11 @@ export type SoustackLiteRecipe = {
       format: 'plain' | 'markdown';
       capturedAt: string;
     };
+    source?: {
+      text: string;
+      convertedAt: string;
+      converter: string;
+    };
   };
 };
 
