@@ -1,4 +1,3 @@
-
 Soustack Mise is a hosted workbench where rough recipe prose becomes an **always-valid Soustack recipe artifact**.
 
 This repository is **product-first and adoption-first**:
@@ -17,7 +16,7 @@ Soustack is emitted as a *side-effect* of finishing a recipe.
 
 ## Locked decisions (do not “just tweak”)
 
-### 1. Source of truth (Option A — immutable)
+### 1. Source of truth (immutable)
 
 * Canonical state is a **Soustack recipe object** stored at:
 
@@ -116,16 +115,6 @@ If two representations disagree, the recipe wins.
 
 ---
 
-### Why this rule exists
-
-* Versioning is a **spec concern**, not an authoring concern
-* The editor is an **adoption surface**
-* Mixing `prep` and `prep@1` causes invisible bugs and split-brain state
-
-If strict spec output is needed, it happens **at export time**, not in-editor.
-
----
-
 ### What stacks do (and do NOT do)
 
 **Stacks are capability declarations only.**
@@ -134,14 +123,73 @@ They:
 
 * unlock UI sections
 * enable affordances
-* inform advisory validation
+* define what *could* be supported
 
 They **do not**:
 
 * create payload content
 * delete payload content
 * auto-convert user prose
-* enforce strict requirements in Draft mode
+* enforce strict requirements
+
+All structure remains **user-authored**.
+
+---
+
+## Guidance model (replaces “Draft vs Mise” as a mental model)
+
+### Key principle
+
+> **Guidance is optional, advisory, and never blocking.**
+
+Editing is continuous.
+Capabilities may be enabled at any time.
+
+Guidance answers:
+
+> “If I care about this capability, what does it require?”
+
+---
+
+### Guidance OFF (default authoring state)
+
+* Users may enable stacks freely
+* UI sections unlock and are editable
+* No global checklist
+* No warning panels
+
+**Allowed:** calm, inline helper text near affected sections
+**Forbidden:** red/yellow warnings, blocking states, modal nags
+
+Inline hints must be:
+
+* contextual
+* dismissible by action
+* phrased as guidance, not requirements
+
+---
+
+### Guidance ON (Mise guidance overlay)
+
+* Aggregated advisory view
+* Shows:
+
+  * preparation progress (high-level)
+  * what’s missing *relative to enabled capabilities*
+* No blocking
+* No auto-fixes
+* No errors
+
+Severity levels (internal only):
+
+* `info`
+* `warning`
+
+Never:
+
+* block save
+* prevent publishing
+* mutate content automatically
 
 ---
 
@@ -162,46 +210,19 @@ Each editor section owns **one and only one** data area.
 
 ---
 
-## Draft vs Mise mode
-
-### Draft mode
-
-* Zero blocking validation
-* Prose-first
-* Incomplete structure allowed
-* No warnings shown
-
-### Mise mode
-
-* Advisory checklist only
-* No blocking
-* No auto-fixes
-* No red “errors”
-
-Mise mode answers:
-
-> “If you care about this capability, here’s what’s missing.”
-
----
-
 ## Validation philosophy
 
-* MiseCheckPanel is **advisory**
-* Severity levels:
-
-  * `info`
-  * `warning`
+* Guidance is **advisory**
 * Never:
 
   * throw
-  * block save
-  * auto-mutate user data
+  * block
+  * auto-mutate
+* Schema enforcement belongs to:
 
-Schema enforcement belongs to:
-
-* `soustack-core`
-* CI
-* downstream consumers
+  * `soustack-core`
+  * CI
+  * downstream consumers
 
 Not the editor.
 
@@ -222,12 +243,12 @@ Never add app-specific fields at top level without an `x-` prefix.
 
 Reject changes that:
 
-* Introduce `@1` stack keys in editor state
+* Introduce versioned stack keys in editor state
 * Store payload data inside `recipe.stacks`
 * Add silent auto-conversions
-* Enforce schema requirements in Draft mode
-* Add a second “source of truth”
-* Break the always-valid invariant
+* Block editing based on “missing” requirements
+* Add a second source of truth
+* Turn guidance into enforcement
 
 Prefer changes that:
 
@@ -249,18 +270,9 @@ Soustack Mise is **not**:
 Soustack Mise **is**:
 
 * a thinking surface for cooking
-* a progressive contract authoring tool
+* a progressive capability authoring tool
 * a trust-preserving editor
 
 If you’re unsure which path to take:
+
 **Choose the one that lets the user keep cooking.**
-
----
-
-## Changelog
-
-### Stack key convention normalization
-- **Canonical convention**: `recipe.stacks` uses unversioned keys only (e.g., `"prep": 1`, not `"prep@1"`).
-- **Data storage**: Section data moved to top-level fields (e.g., `recipe.miseEnPlace` for prep items, not `stacks["prep@1"]`).
-- **Migration**: Legacy versioned keys (`"prep@1"`, `"storage@1"`, etc.) are automatically migrated to unversioned format at the editor edge.
-- **Components updated**: All UI components now use unversioned stack keys consistently.
