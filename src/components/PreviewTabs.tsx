@@ -333,20 +333,130 @@ function PreviewTab({ recipe }: { recipe: SoustackLiteRecipe }) {
         >
           Instructions
         </h3>
-        <ol style={{ margin: 0, paddingLeft: '24px' }}>
-          {instructions.map((instruction, idx) => (
-            <li
-              key={idx}
-              style={{
-                marginBottom: '12px',
-                fontSize: '16px',
-                lineHeight: '1.6',
-              }}
-            >
-              {String(instruction)}
-            </li>
-          ))}
-        </ol>
+        {instructions.length === 0 ? (
+          <p style={{ color: '#999', fontStyle: 'italic' }}>No instructions provided</p>
+        ) : (
+          <ol style={{ margin: 0, paddingLeft: '24px' }}>
+            {instructions.map((instruction, idx) => {
+              // String instruction
+              if (typeof instruction === 'string') {
+                const str = instruction.trim();
+                if (str === '(not provided)' || str === '') return null;
+                return (
+                  <li
+                    key={idx}
+                    style={{
+                      marginBottom: '12px',
+                      fontSize: '16px',
+                      lineHeight: '1.6',
+                    }}
+                  >
+                    {str}
+                  </li>
+                );
+              }
+              // Object instruction
+              if (typeof instruction === 'object' && instruction !== null) {
+                // Section
+                if ('section' in instruction) {
+                  const section = instruction as { section: { name: string; items: unknown[] } };
+                  return (
+                    <li key={idx} style={{ marginBottom: '24px', listStyle: 'none' }}>
+                      <div
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          marginBottom: '12px',
+                          color: '#333',
+                        }}
+                      >
+                        {section.section.name || 'Untitled Section'}
+                      </div>
+                      <ol
+                        style={{
+                          margin: 0,
+                          paddingLeft: '24px',
+                        }}
+                      >
+                        {section.section.items.map((item, itemIdx) => {
+                          // String step
+                          if (typeof item === 'string') {
+                            const str = item.trim();
+                            if (str === '(not provided)' || str === '') return null;
+                            return (
+                              <li
+                                key={itemIdx}
+                                style={{
+                                  marginBottom: '12px',
+                                  fontSize: '16px',
+                                  lineHeight: '1.6',
+                                }}
+                              >
+                                {str}
+                              </li>
+                            );
+                          }
+                          // Structured object step
+                          if (typeof item === 'object' && item !== null && 'text' in item) {
+                            const obj = item as { text: string; [key: string]: unknown };
+                            const text = obj.text?.trim() || '';
+                            if (text === '(not provided)' || text === '') return null;
+                            return (
+                              <li
+                                key={itemIdx}
+                                style={{
+                                  marginBottom: '12px',
+                                  fontSize: '16px',
+                                  lineHeight: '1.6',
+                                }}
+                              >
+                                {text}
+                              </li>
+                            );
+                          }
+                          return null;
+                        })}
+                      </ol>
+                    </li>
+                  );
+                }
+                // Structured instruction object
+                if ('text' in instruction) {
+                  const obj = instruction as { text: string; [key: string]: unknown };
+                  const text = obj.text?.trim() || '';
+                  if (text === '(not provided)' || text === '') return null;
+                  return (
+                    <li
+                      key={idx}
+                      style={{
+                        marginBottom: '12px',
+                        fontSize: '16px',
+                        lineHeight: '1.6',
+                      }}
+                    >
+                      {text}
+                    </li>
+                  );
+                }
+              }
+              // Fallback: convert to string
+              const str = String(instruction).trim();
+              if (str === '(not provided)' || str === '') return null;
+              return (
+                <li
+                  key={idx}
+                  style={{
+                    marginBottom: '12px',
+                    fontSize: '16px',
+                    lineHeight: '1.6',
+                  }}
+                >
+                  {str}
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </section>
     </div>
   );
