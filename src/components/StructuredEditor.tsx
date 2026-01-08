@@ -15,12 +15,14 @@ type StructuredEditorProps = {
   recipe: SoustackLiteRecipe;
   onChange: (next: SoustackLiteRecipe) => void;
   miseMode?: 'draft' | 'mise';
+  hideHeader?: boolean; // Hide header and name input (for Creator flow)
 };
 
 export default function StructuredEditor({
   recipe,
   onChange,
   miseMode = 'draft',
+  hideHeader = false,
 }: StructuredEditorProps) {
   // Normalize recipe at the edge: migrate versioned stack keys and prep data
   const normalizedRecipeRef = useRef<SoustackLiteRecipe | null>(null);
@@ -216,40 +218,44 @@ export default function StructuredEditor({
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
-        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>
-          {isMiseMode ? 'Mise en Place' : 'Structured Editor'}
-        </h2>
-      </div>
+      {!hideHeader && (
+        <div style={{ padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>
+            {isMiseMode ? 'Mise en Place' : 'Structured Editor'}
+          </h2>
+        </div>
+      )}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Main editor content - expands to full width when rail is not present */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
           {/* Mise Check Panel - only visible in Mise mode, shown as progress bar */}
           {isMiseMode && <MiseCheckPanel recipe={currentRecipe} />}
-          <div style={{ marginBottom: '32px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              Recipe Name
-            </label>
-            <input
-              type="text"
-              value={currentRecipe.name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '4px',
-                fontSize: '16px',
-              }}
-            />
-          </div>
+          {!hideHeader && (
+            <div style={{ marginBottom: '32px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                Recipe Name
+              </label>
+              <input
+                type="text"
+                value={currentRecipe.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '4px',
+                  fontSize: '16px',
+                }}
+              />
+            </div>
+          )}
 
           {/* Ingredients section */}
           <IngredientsSection recipe={currentRecipe} onChange={onChange} />

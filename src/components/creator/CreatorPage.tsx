@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { CreatorMode } from './CreatorMode';
 import EntryCards from './EntryCards';
 import PasteRecipeEditor from './PasteRecipeEditor';
+import BuildRecipeEditor from './BuildRecipeEditor';
 import InputMethodToggle from './InputMethodToggle';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
 import { parseFreeform } from '@/lib/mise/parseFreeform';
@@ -252,9 +253,7 @@ export default function CreatorPage() {
                   />
                 )}
                 {inputMethod === 'build' && (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                    Build step-by-step editor goes here
-                  </div>
+                  <BuildRecipeEditor recipe={recipe} onChange={setRecipe} />
                 )}
                 {mode === 'import' && (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
@@ -360,9 +359,7 @@ export default function CreatorPage() {
               />
             )}
             {inputMethod === 'build' && (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                Build step-by-step editor goes here
-              </div>
+              <BuildRecipeEditor recipe={recipe} onChange={setRecipe} />
             )}
             {mode === 'import' && (
               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
