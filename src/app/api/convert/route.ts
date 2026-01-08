@@ -12,7 +12,7 @@ function getGeminiModel() {
   }
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
+    model: 'gemini-2.5-flash-lite',
     generationConfig: {
       temperature: 0.1,
       maxOutputTokens: 4096,
@@ -20,22 +20,17 @@ function getGeminiModel() {
   });
 }
 
-// Prompt for Gemini
-function createConversionPrompt(text: string): string {
-  return `You are a recipe parser that converts freeform recipe text into structured JSON format.
+const SYSTEM_PROMPT = `Convert recipe text into structured JSON.
 
-Parse the following recipe text and output ONLY valid JSON (no markdown code fences, no explanations):
+Output ONLY valid JSON (no markdown, no explanation):
 
-${text}
-
-Output a JSON object with this exact structure:
 {
   "name": "Recipe Name",
   "description": "Optional description",
-  "servings": "4 servings" or null,
+  "servings": "4 servings",
   "ingredients": [
-    { "quantity": 2, "unit": "cups", "name": "flour", "prep": "sifted" },
-    { "quantity": { "min": 2, "max": 3 }, "unit": "cloves", "name": "garlic", "prep": "minced" },
+    { "quantity": 2, "unit": "cups", "name": "flour" },
+    { "quantity": 2, "name": "eggs" },
     { "name": "salt", "toTaste": true }
   ],
   "instructions": [
@@ -43,7 +38,7 @@ Output a JSON object with this exact structure:
     { 
       "text": "Bake until golden",
       "timing": {
-        "minutes": 10,
+        "duration": { "minutes": 10 },
         "activity": "passive",
         "completionCue": "golden brown"
       }
@@ -52,14 +47,23 @@ Output a JSON object with this exact structure:
 }
 
 Rules:
-- quantity can be a number, decimal, or range object { "min": X, "max": Y }
-- unit should be standardized: cups, tbsp, tsp, g, oz, lb, ml, l, etc.
-- prep is optional (diced, minced, softened, etc.)
-- For "to taste" ingredients: use { "name": "ingredient", "toTaste": true } (omit quantity/unit)
-- timing.minutes for exact duration (number), or timing.minMinutes and timing.maxMinutes for ranges
-- timing.activity must be "active" or "passive"
-- timing.completionCue is optional (e.g., "golden brown", "tender")
-- Output ONLY valid JSON, no markdown fences, no code blocks, no explanations`;
+1. "quantity": number or range { "min": 2, "max": 3 }. Omit if unspecified.
+2. "unit": cups, tbsp, tsp, g, oz, lb, ml, L, cloves, slices. Omit for countable items (eggs, apples).
+3. "prep": diced, minced, softened, etc. Omit if none.
+4. "toTaste": true for "to taste" ingredients. Omit otherwise.
+5. "timing.duration": { "minutes": N } for exact, { "minMinutes": N, "maxMinutes": N } for ranges.
+6. "timing.activity": "active" (stirring) or "passive" (baking). Omit if unclear.
+7. "timing.completionCue": "until golden", etc. Omit if none.
+8. Do NOT include null values. Omit fields entirely if not applicable.
+9. Output ONLY the JSON object. No markdown fences.`;
+
+// Prompt for Gemini
+function createConversionPrompt(text: string): string {
+  return `${SYSTEM_PROMPT}
+
+Parse the following recipe text:
+
+${text}`;
 }
 
 // Strip markdown code fences if present
