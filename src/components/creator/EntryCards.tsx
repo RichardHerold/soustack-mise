@@ -16,6 +16,7 @@ export default function EntryCards({ onSelect }: EntryCardsProps) {
       }}
     >
       <button
+        type="button"
         onClick={() => onSelect('paste')}
         style={{
           padding: '24px',
