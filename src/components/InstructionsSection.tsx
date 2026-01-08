@@ -1172,17 +1172,17 @@ export default function InstructionsSection({
             justifyContent: 'space-between',
             alignItems: 'center',
             marginTop: '12px',
-            marginBottom: '12px',
+            marginBottom: '14px',
           }}
         >
           <div
             style={{
               flex: 1,
-              padding: '8px 12px',
+              padding: '10px 14px',
               borderRadius: '4px',
-              backgroundColor: 'rgba(0, 0, 0, 0.03)',
+              backgroundColor: hasTimed ? 'rgba(59, 130, 246, 0.025)' : 'rgba(0, 0, 0, 0.03)',
               border: showSectionActions ? '1px solid #d0d0d0' : '1px solid transparent',
-              transition: 'border-color 0.2s ease',
+              transition: 'border-color 0.2s ease, background-color 0.2s ease',
             }}
           >
             <input

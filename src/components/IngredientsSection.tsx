@@ -692,7 +692,7 @@ export default function IngredientsSection({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '12px',
+            marginBottom: '14px',
           }}
         >
           <input
@@ -704,14 +704,14 @@ export default function IngredientsSection({
             placeholder="Section name (e.g., For the sauce)"
             style={{
               flex: 1,
-              padding: '8px 12px',
+              padding: '10px 14px',
               border: showSectionActions ? '1px solid #d0d0d0' : '1px solid transparent',
               borderRadius: '4px',
               fontSize: '14px',
-              fontWeight: 500,
-              backgroundColor: 'transparent',
+              fontWeight: 550,
+              backgroundColor: hasScaling ? 'rgba(139, 92, 246, 0.025)' : 'transparent',
               outline: 'none',
-              transition: 'border-color 0.2s ease',
+              transition: 'border-color 0.2s ease, background-color 0.2s ease',
             }}
           />
           {showSectionActions && (
