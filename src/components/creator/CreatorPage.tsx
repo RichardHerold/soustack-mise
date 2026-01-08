@@ -1,19 +1,58 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { CreatorMode } from './CreatorMode';
 import EntryCards from './EntryCards';
 import PasteRecipeEditor from './PasteRecipeEditor';
+import InputMethodToggle from './InputMethodToggle';
 import { compileLiteRecipe } from '@/lib/mise/liteCompiler';
+import { parseFreeform } from '@/lib/mise/parseFreeform';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
+
+type InputMethod = 'paste' | 'build';
 
 export default function CreatorPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mode, setMode] = useState<CreatorMode>('empty');
+  const [inputMethod, setInputMethod] = useState<InputMethod>('paste');
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
   const [draftText, setDraftText] = useState('');
   const [recipe, setRecipe] = useState<SoustackLiteRecipe>(() => compileLiteRecipe({}));
   const [parseMeta, setParseMeta] = useState<{ confidence: number; mode: string } | null>(null);
+
+  // Initialize inputMethod when mode changes
+  useEffect(() => {
+    if (mode === 'paste') {
+      setInputMethod('paste');
+    } else if (mode === 'scratch') {
+      setInputMethod('build');
+    }
+  }, [mode]);
+
+  // Manual re-parse function
+  const handleReParse = useCallback(() => {
+    if (!draftText.trim()) return;
+
+    try {
+      const parseResult = parseFreeform(draftText);
+      const newRecipe = compileLiteRecipe({
+        name: parseResult.title || undefined,
+        ingredients: parseResult.ingredients,
+        instructions: parseResult.instructions,
+        meta: {
+          confidence: parseResult.confidence,
+          mode: parseResult.mode,
+        },
+      });
+      setRecipe(newRecipe);
+      setParseMeta({
+        confidence: parseResult.confidence,
+        mode: parseResult.mode,
+      });
+    } catch (error) {
+      console.warn('Re-parse error (non-blocking):', error);
+    }
+  }, [draftText]);
 
   // Detect mobile
   useEffect(() => {
@@ -135,6 +174,11 @@ export default function CreatorPage() {
           <EntryCards
             onSelect={(selectedMode) => {
               setMode(selectedMode);
+              if (selectedMode === 'paste') {
+                setInputMethod('paste');
+              } else if (selectedMode === 'scratch') {
+                setInputMethod('build');
+              }
             }}
           />
         </div>
@@ -186,17 +230,30 @@ export default function CreatorPage() {
           <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
             {activeTab === 'editor' && (
               <div>
-                {mode === 'paste' && (
+                {/* Show toggle when in paste mode or scratch mode */}
+                {(mode === 'paste' || mode === 'scratch') && (
+                  <InputMethodToggle
+                    inputMethod={inputMethod}
+                    onChange={(method) => {
+                      setInputMethod(method);
+                      // When switching to build, keep current recipe (no conversion modal)
+                    }}
+                    showReParse={inputMethod === 'build' && draftText.trim().length > 0}
+                    onReParse={handleReParse}
+                  />
+                )}
+                {inputMethod === 'paste' && (
                   <PasteRecipeEditor
                     draftText={draftText}
                     onDraftTextChange={setDraftText}
                     onRecipeChange={setRecipe}
                     onParseMetaChange={setParseMeta}
+                    autoParse={true}
                   />
                 )}
-                {mode === 'scratch' && (
+                {inputMethod === 'build' && (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                    Scratch mode editor goes here
+                    Build step-by-step editor goes here
                   </div>
                 )}
                 {mode === 'import' && (
@@ -281,17 +338,30 @@ export default function CreatorPage() {
               borderRight: '1px solid #e0e0e0',
             }}
           >
-            {mode === 'paste' && (
+            {/* Show toggle when in paste mode or scratch mode */}
+            {(mode === 'paste' || mode === 'scratch') && (
+              <InputMethodToggle
+                inputMethod={inputMethod}
+                onChange={(method) => {
+                  setInputMethod(method);
+                  // When switching to build, keep current recipe (no conversion modal)
+                }}
+                showReParse={inputMethod === 'build' && draftText.trim().length > 0}
+                onReParse={handleReParse}
+              />
+            )}
+            {inputMethod === 'paste' && (
               <PasteRecipeEditor
                 draftText={draftText}
                 onDraftTextChange={setDraftText}
                 onRecipeChange={setRecipe}
                 onParseMetaChange={setParseMeta}
+                autoParse={true}
               />
             )}
-            {mode === 'scratch' && (
+            {inputMethod === 'build' && (
               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                Scratch mode editor goes here
+                Build step-by-step editor goes here
               </div>
             )}
             {mode === 'import' && (

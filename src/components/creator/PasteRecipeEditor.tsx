@@ -10,6 +10,7 @@ type PasteRecipeEditorProps = {
   onDraftTextChange: (text: string) => void;
   onRecipeChange: (recipe: SoustackLiteRecipe) => void;
   onParseMetaChange: (meta: { confidence: number; mode: string } | null) => void;
+  autoParse?: boolean; // If false, don't auto-parse on text change
 };
 
 export default function PasteRecipeEditor({
@@ -17,6 +18,7 @@ export default function PasteRecipeEditor({
   onDraftTextChange,
   onRecipeChange,
   onParseMetaChange,
+  autoParse = true,
 }: PasteRecipeEditorProps) {
   const [isDetecting, setIsDetecting] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,7 +86,9 @@ export default function PasteRecipeEditor({
   // Handle textarea change
   const handleTextChange = (text: string) => {
     onDraftTextChange(text);
-    handleParse(text);
+    if (autoParse) {
+      handleParse(text);
+    }
   };
 
   // Cleanup on unmount
