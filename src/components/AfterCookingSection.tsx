@@ -31,6 +31,7 @@ type ReheatMethod = {
 type AfterCookingSectionProps = {
   recipe: SoustackLiteRecipe;
   onChange: (next: SoustackLiteRecipe) => void;
+  showCreatorHints?: boolean;
 };
 
 /**
@@ -44,6 +45,7 @@ type AfterCookingSectionProps = {
 export default function AfterCookingSection({
   recipe,
   onChange,
+  showCreatorHints = false,
 }: AfterCookingSectionProps) {
   // Check for storage capability declaration (unversioned key only)
   const isEnabled = isStackEnabled(recipe.stacks, 'storage');
@@ -90,6 +92,12 @@ export default function AfterCookingSection({
       ...recipe,
       storage: newData,
     } as SoustackLiteRecipe & { storage?: StorageData };
+    
+    // Auto-enable storage stack in Creator mode when storage data is added
+    if (showCreatorHints && !isEnabled && Object.keys(newData).length > 0) {
+      next.stacks = enableStack(next.stacks, 'storage');
+    }
+    
     onChange(next);
   };
 

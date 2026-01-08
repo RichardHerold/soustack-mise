@@ -13,7 +13,8 @@ type BuildRecipeEditorProps = {
  * - Uses StructuredEditor in draft mode (no Mise mode toggle)
  * - No global warning/checklist panels (MiseCheckPanel, MiseGuidanceRail hidden)
  * - No CapabilitiesPanel (stacks are auto-detected from content)
- * - Inline guidance only (calm, contextual via InlineStackToggle in sections)
+ * - Inline guidance only (calm, contextual hints)
+ * - Auto-enables stacks when content is added (handled in section components)
  * - Renders: Name, Ingredients, Instructions, After Cooking sections
  */
 export default function BuildRecipeEditor({
@@ -26,6 +27,7 @@ export default function BuildRecipeEditor({
       onChange={onChange}
       miseMode="draft"
       hideHeader={true}
+      showCreatorHints={true}
     />
   );
 }

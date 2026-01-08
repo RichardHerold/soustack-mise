@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
-import { isStackEnabled } from '@/lib/mise/stacks';
+import { isStackEnabled, enableStack } from '@/lib/mise/stacks';
 import { InlineStackToggle } from './CapabilitiesPanel';
+import InlineHint from './creator/InlineHint';
+import { shouldSuggestTimed } from './creator/hintUtils';
 
 // Types for instruction structures
 type InstructionString = string;
@@ -33,6 +35,7 @@ type InstructionItem = InstructionString | InstructionObject | InstructionSectio
 type InstructionsSectionProps = {
   recipe: SoustackLiteRecipe;
   onChange: (next: SoustackLiteRecipe) => void;
+  showCreatorHints?: boolean;
 };
 
 /**
@@ -47,6 +50,7 @@ type InstructionsSectionProps = {
 export default function InstructionsSection({
   recipe,
   onChange,
+  showCreatorHints = false,
 }: InstructionsSectionProps) {
   const hasStructured = isStackEnabled(recipe.stacks, 'structured');
   const hasTimed = isStackEnabled(recipe.stacks, 'timed');
@@ -1705,6 +1709,24 @@ export default function InstructionsSection({
           </div>
         </>
       )}
+      
+      {/* Creator timing hint - appears after instructions list */}
+      {showCreatorHints && shouldSuggestTimed(recipe) && (
+        <InlineHint
+          message="💡 Add timing?"
+          action={{
+            label: 'Enable timed',
+            onClick: () => {
+              const next = {
+                ...recipe,
+                stacks: enableStack(enableStack(recipe.stacks, 'timed'), 'structured'),
+              };
+              onChange(next);
+            },
+          }}
+        />
+      )}
+
       {/* Inline suggestion for storage stack */}
       {!isStackEnabled(recipe.stacks, 'storage') && (
         <div

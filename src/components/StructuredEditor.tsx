@@ -16,6 +16,7 @@ type StructuredEditorProps = {
   onChange: (next: SoustackLiteRecipe) => void;
   miseMode?: 'draft' | 'mise';
   hideHeader?: boolean; // Hide header and name input (for Creator flow)
+  showCreatorHints?: boolean; // Show inline hints for Creator flow
 };
 
 export default function StructuredEditor({
@@ -23,6 +24,7 @@ export default function StructuredEditor({
   onChange,
   miseMode = 'draft',
   hideHeader = false,
+  showCreatorHints = false,
 }: StructuredEditorProps) {
   // Normalize recipe at the edge: migrate versioned stack keys and prep data
   const normalizedRecipeRef = useRef<SoustackLiteRecipe | null>(null);
@@ -261,13 +263,25 @@ export default function StructuredEditor({
           <IngredientsSection recipe={currentRecipe} onChange={onChange} />
 
           {/* Mise en Place section */}
-          <MiseEnPlaceSection recipe={currentRecipe} onChange={onChange} />
+          <MiseEnPlaceSection
+            recipe={currentRecipe}
+            onChange={onChange}
+            showCreatorHints={showCreatorHints}
+          />
 
           {/* Instructions section */}
-          <InstructionsSection recipe={currentRecipe} onChange={onChange} />
+          <InstructionsSection
+            recipe={currentRecipe}
+            onChange={onChange}
+            showCreatorHints={showCreatorHints}
+          />
 
           {/* After Cooking section */}
-          <AfterCookingSection recipe={currentRecipe} onChange={onChange} />
+          <AfterCookingSection
+            recipe={currentRecipe}
+            onChange={onChange}
+            showCreatorHints={showCreatorHints}
+          />
         </div>
 
         {/* Mise Guidance Rail - only visible in Mise mode when checks exist */}

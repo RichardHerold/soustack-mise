@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import type { SoustackLiteRecipe } from '@/lib/mise/types';
-import { isStackEnabled } from '@/lib/mise/stacks';
+import { isStackEnabled, enableStack } from '@/lib/mise/stacks';
 import { InlineStackToggle } from './CapabilitiesPanel';
 
 type MiseEnPlaceItem = {
@@ -12,6 +12,7 @@ type MiseEnPlaceItem = {
 type MiseEnPlaceSectionProps = {
   recipe: SoustackLiteRecipe;
   onChange: (next: SoustackLiteRecipe) => void;
+  showCreatorHints?: boolean;
 };
 
 /**
@@ -24,6 +25,7 @@ type MiseEnPlaceSectionProps = {
 export default function MiseEnPlaceSection({
   recipe,
   onChange,
+  showCreatorHints = false,
 }: MiseEnPlaceSectionProps) {
   // Check for prep capability declaration (unversioned key only)
   const isEnabled = isStackEnabled(recipe.stacks, 'prep');
@@ -154,6 +156,12 @@ export default function MiseEnPlaceSection({
         miseEnPlace?: Array<{ text: string }>;
       };
       nextWithMiseEnPlace.miseEnPlace = filteredItems;
+      
+      // Auto-enable prep stack in Creator mode when miseEnPlace items are added
+      if (showCreatorHints && !isEnabled) {
+        next.stacks = enableStack(next.stacks, 'prep');
+      }
+      
       onChange(next);
     }
   };
