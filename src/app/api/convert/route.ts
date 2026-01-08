@@ -140,7 +140,7 @@ function transformToSoustackRecipe(
       source: {
         text: originalText,
         convertedAt: new Date().toISOString(),
-        converter: 'gemini-2.0-flash',
+        converter: 'gemini-2.5-flash-lite',
       },
     },
   };

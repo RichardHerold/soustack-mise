@@ -578,3 +578,70 @@ pre code {
   background: transparent;
   padding: 0;
 }
+
+/* ==========================================================================
+   Recipe Creator Components
+   ========================================================================== */
+
+.creator-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+@media (max-width: 768px) {
+  .creator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ingredient-card,
+.instruction-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.ingredient-card:hover,
+.instruction-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.ingredient-card.expanded,
+.instruction-card.expanded {
+  padding: var(--space-md);
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--color-text-muted);
+  user-select: none;
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.timing-badge {
+  font-size: var(--text-xs);
+  background: var(--cap-timed-bg);
+  color: var(--cap-timed);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
