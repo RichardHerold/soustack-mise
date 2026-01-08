@@ -1171,28 +1171,39 @@ export default function InstructionsSection({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            marginTop: '12px',
             marginBottom: '12px',
           }}
         >
-          <input
-            type="text"
-            value={item.section.name || ''}
-            onChange={(e) => handleSectionNameChange(index, e.target.value || '')}
-            onFocus={() => setFocusedIndex(index)}
-            onBlur={() => setFocusedIndex(null)}
-            placeholder="Section name (e.g., For the sauce)"
+          <div
             style={{
               flex: 1,
               padding: '8px 12px',
-              border: showSectionActions ? '1px solid #d0d0d0' : '1px solid transparent',
               borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: 500,
-              backgroundColor: 'transparent',
-              outline: 'none',
+              backgroundColor: 'rgba(0, 0, 0, 0.03)',
+              border: showSectionActions ? '1px solid #d0d0d0' : '1px solid transparent',
               transition: 'border-color 0.2s ease',
             }}
-          />
+          >
+            <input
+              type="text"
+              value={item.section.name || ''}
+              onChange={(e) => handleSectionNameChange(index, e.target.value || '')}
+              onFocus={() => setFocusedIndex(index)}
+              onBlur={() => setFocusedIndex(null)}
+              placeholder="Section name (e.g., For the sauce)"
+              style={{
+                width: '100%',
+                padding: 0,
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontWeight: 600,
+                backgroundColor: 'transparent',
+                outline: 'none',
+              }}
+            />
+          </div>
           {showSectionActions && (
             <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
               <button
