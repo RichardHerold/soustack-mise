@@ -466,11 +466,36 @@ export default function IngredientsSection({
     );
   };
 
+  // Extract prep text from structured ingredient
+  const getPrepText = (item: IngredientObject): string | null => {
+    // Prefer prepActions array if present
+    if (item.prepActions && Array.isArray(item.prepActions) && item.prepActions.length > 0) {
+      return item.prepActions.filter((a): a is string => typeof a === 'string').join(', ');
+    }
+    // Fall back to prep string
+    if (item.prep && typeof item.prep === 'string' && item.prep.trim()) {
+      return item.prep.trim();
+    }
+    return null;
+  };
+
+  // Extract scaling text from structured ingredient
+  const getScalingText = (item: IngredientObject): string | null => {
+    if (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') {
+      const qty = String(item.quantity);
+      const unit = item.unit && typeof item.unit === 'string' ? item.unit.trim() : '';
+      return unit ? `${qty} ${unit}` : qty;
+    }
+    return null;
+  };
+
   // Render a structured ingredient
   const renderStructuredIngredient = (item: IngredientObject, index: number) => {
     const showActions = hoveredIndex === index || focusedIndex === index;
     const isDragging = draggedIndex === index;
     const isDragOver = dragOverIndex === index;
+    const prepText = getPrepText(item);
+    const scalingText = getScalingText(item);
 
     return (
       <div
@@ -609,6 +634,50 @@ export default function IngredientsSection({
             transition: 'border-color 0.2s ease',
           }}
         />
+        {/* Inline semantic preview (prep + scaling tokens) */}
+        {(prepText || scalingText) && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              marginLeft: '4px',
+              opacity: 0.7,
+            }}
+          >
+            {prepText && (
+              <span
+                style={{
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  border: '1px solid var(--cap-prep)',
+                  color: 'var(--cap-prep)',
+                  backgroundColor: 'var(--cap-prep-bg)',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {prepText}
+              </span>
+            )}
+            {scalingText && (
+              <span
+                style={{
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  border: '1px solid var(--cap-scaling)',
+                  color: 'var(--cap-scaling)',
+                  backgroundColor: 'var(--cap-scaling-bg)',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {scalingText}
+              </span>
+            )}
+          </div>
+        )}
         {/* Scaling UI (only when scaling capability enabled) */}
         {hasScaling && (
           <select
@@ -896,6 +965,54 @@ export default function IngredientsSection({
                           transition: 'border-color 0.2s ease',
                         }}
                       />
+                      {/* Inline semantic preview (prep + scaling tokens) for section items */}
+                      {(() => {
+                        const sectionPrepText = getPrepText(sectionItem);
+                        const sectionScalingText = getScalingText(sectionItem);
+                        return (sectionPrepText || sectionScalingText) ? (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '12px',
+                              marginLeft: '4px',
+                              opacity: 0.7,
+                            }}
+                          >
+                            {sectionPrepText && (
+                              <span
+                                style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  border: '1px solid var(--cap-prep)',
+                                  color: 'var(--cap-prep)',
+                                  backgroundColor: 'var(--cap-prep-bg)',
+                                  fontWeight: 500,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {sectionPrepText}
+                              </span>
+                            )}
+                            {sectionScalingText && (
+                              <span
+                                style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  border: '1px solid var(--cap-scaling)',
+                                  color: 'var(--cap-scaling)',
+                                  backgroundColor: 'var(--cap-scaling-bg)',
+                                  fontWeight: 500,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {sectionScalingText}
+                              </span>
+                            )}
+                          </div>
+                        ) : null;
+                      })()}
                       {hasScaling && (
                         <select
                           value={sectionItem.scaling?.mode || 'proportional'}
