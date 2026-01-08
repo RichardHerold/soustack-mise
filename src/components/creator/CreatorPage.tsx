@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { CreatorMode } from './CreatorMode';
+import EntryCards from './EntryCards';
 
 export default function CreatorPage() {
   const [isMobile, setIsMobile] = useState(false);
+  const [mode, setMode] = useState<CreatorMode>('empty');
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
   const [recipeName, setRecipeName] = useState('');
   const [description, setDescription] = useState('');
@@ -69,46 +72,65 @@ export default function CreatorPage() {
         </div>
       </div>
 
-      {/* Name and Description */}
-      <div style={{ padding: '24px', borderBottom: '1px solid #e0e0e0' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <input
-            type="text"
-            value={recipeName}
-            onChange={(e) => setRecipeName(e.target.value)}
-            placeholder="Recipe Name"
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              fontSize: '16px',
-              outline: 'none',
-            }}
-          />
+      {/* Name and Description - only show when not in empty mode */}
+      {mode !== 'empty' && (
+        <div style={{ padding: '24px', borderBottom: '1px solid #e0e0e0' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              value={recipeName}
+              onChange={(e) => setRecipeName(e.target.value)}
+              placeholder="Recipe Name"
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                fontSize: '16px',
+                outline: 'none',
+              }}
+            />
+          </div>
+          <div>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description (optional)"
+              rows={2}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #d0d0d0',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          </div>
         </div>
-        <div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)"
-            rows={2}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d0d0d0',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              resize: 'vertical',
-              outline: 'none',
-            }}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Main Body */}
-      {isMobile ? (
+      {mode === 'empty' ? (
+        /* Entry Experience - show 3 cards */
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <EntryCards
+            onSelect={(selectedMode) => {
+              setMode(selectedMode);
+            }}
+          />
+        </div>
+      ) : isMobile ? (
         <>
           {/* Mobile Tab Switcher */}
           <div
@@ -156,7 +178,9 @@ export default function CreatorPage() {
           <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
             {activeTab === 'editor' && (
               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-                Editor goes here
+                {mode === 'paste' && 'Paste mode editor goes here'}
+                {mode === 'scratch' && 'Scratch mode editor goes here'}
+                {mode === 'import' && 'Import mode editor goes here'}
               </div>
             )}
             {activeTab === 'preview' && (
@@ -230,7 +254,9 @@ export default function CreatorPage() {
             }}
           >
             <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
-              Editor goes here
+              {mode === 'paste' && 'Paste mode editor goes here'}
+              {mode === 'scratch' && 'Scratch mode editor goes here'}
+              {mode === 'import' && 'Import mode editor goes here'}
             </div>
           </div>
 
